@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>The Roomba King: a creature in VR</title>
+<meta name="description" content="Meet the Roomba from the arcade episodes in VR. It wanders, notices you, follows, sulks, eats things and hears your voice.">
+<style>
+@font-face { font-family: "Press Start 2P"; src: url(assets/fonts/PressStart2P-Regular.ttf); font-display: block; }
+@font-face { font-family: "Silkscreen"; src: url(assets/fonts/Silkscreen-Regular.ttf); }
+html, body { margin: 0; height: 100%; background: #06040c; overflow: hidden; color: #f4ecd8; font-family: "Silkscreen", monospace; }
+#stage { position: fixed; inset: 0; }
+#intro { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(40,20,70,.82), rgba(6,4,12,.95)); z-index: 5; transition: opacity .4s; }
+#intro.gone, #hud.gone { opacity: 0; pointer-events: none; }
+.card { max-width: 560px; padding: 28px 30px; border: 4px solid #100820; background: #2a1a4a; box-shadow: 0 0 0 4px #ffe14a, 0 20px 60px rgba(0,0,0,.6); }
+h1 { font-family: "Press Start 2P"; font-size: 22px; line-height: 1.5; margin: 0 0 6px; color: #ffe14a; text-shadow: 3px 3px #100820; }
+.sub { font-size: 15px; margin: 0 0 18px; color: #3ff0e0; }
+p { font-size: 15px; line-height: 1.55; margin: 8px 0; }
+.btns { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 8px; }
+button { font-family: "Press Start 2P"; font-size: 12px; padding: 14px 16px; border: 3px solid #100820; background: #ffe14a; color: #100820; cursor: pointer; box-shadow: 3px 3px 0 #100820; }
+button:disabled { opacity: .35; cursor: default; }
+button.alt { background: #3ff0e0; }
+button.on { background: #5ce07a; }
+#bVR { background: #ff3fd1; color: #fff; }
+.state { font-size: 13px; color: #c8b8e8; min-height: 1.2em; }
+ul { padding-left: 18px; margin: 8px 0; font-size: 14px; line-height: 1.6; }
+#hud { position: fixed; left: 12px; bottom: 12px; z-index: 4; font-size: 13px; background: rgba(16,8,32,.72); padding: 8px 12px; border: 2px solid #100820; line-height: 1.6; transition: opacity .4s; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="intro"><div class="card">
+  <h1>THE ROOMBA KING</h1>
+  <div class="sub">A creature in Unity's 80s bedroom. It has moods.</div>
+  <p>It wanders on its own, notices you, follows you around, circles and nudges your feet, keeps its distance when it's shy and sulks in a corner when you offend it. It bumps into things and has opinions about them, and it eats whatever it finds.</p>
+  <p>Talk to it and it comes over. Shout or clap and it jumps.</p>
+  <div class="btns">
+    <button id="bMic" class="alt">1. LET IT HEAR YOU</button>
+    <button id="bVR" disabled>2. ENTER VR</button>
+    <button id="bFlat">OR WALK IN ON SCREEN</button>
+  </div>
+  <div class="state" id="micState">Tap 1 first so it can hear your voice.</div>
+  <div class="state" id="vrState"></div>
+  <ul>
+    <li>Left stick: walk. Right stick: turn.</li>
+    <li>Trigger at the floor: toss a crumb. Trigger at the Roomba: boop it. Crouch and hold your hand over it to pet it.</li>
+    <li>A or X: call it. B or Y: clap.</li>
+    <li>On screen: WASD to walk, drag to look, click the floor or the Roomba, C to call, V to clap.</li>
+  </ul>
+</div></div>
+<div id="hud" class="gone">WASD walk · drag look · click floor = crumb · click Roomba = boop · C call · V clap</div>
+<script src="js/three.min.js"></script>
+<script src="js/room.js"></script>
+<script src="js/roomba.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
