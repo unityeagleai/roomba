@@ -283,7 +283,7 @@ S.eat = {
   enter(d) { setFace('hungry'); setLight('eat'); d.ph = 'go'; if (d.it.kind === 'crumb' && !d.quiet) say(['CRUMBS DETECTED', 'SNACK ALERT', 'MINE']); },
   update(dt, d) {
     const it = d.it; if (it.eaten && d.ph === 'go') return go('wander');
-    if (d.ph === 'go') { const D = steer(it.x, it.z, it.tossed ? 0.36 : 0.28, 0.02, Math.hypot(it.x - B.x, it.z - B.z) < 0.6); if (D < RAD * 0.75) { d.ph = 'munch'; d.t = 0; snd('nom'); setFace('eat'); look.shake = 1.4; } if (d.t > 15) { say('IT GOT AWAY'); go('wander'); } return; }
+    if (d.ph === 'go') { const D = steer(it.x, it.z, it.tossed ? 0.36 : 0.28, 0.02, Math.hypot(it.x - B.x, it.z - B.z) < 0.6); if (D < RAD * 0.75) { d.ph = 'munch'; d.t = 0; snd('nom'); setFace('eat'); look.shake = 1.4; } if (d.t > 25) { say('IT GOT AWAY'); go('wander'); } return; }
     if (d.ph === 'munch') {
       stop(); look.shake = Math.max(look.shake, 0.6); const k = Math.max(0, 1 - d.t / 1.2); it.mesh.scale.setScalar(k * (0.85 + rand() * 0.3)); it.mesh.position.set(it.x + (B.x - it.x) * (1 - k), 0, it.z + (B.z - it.z) * (1 - k));
       if (d.t > 1.3) {
