@@ -51,3 +51,18 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
 - [x] RV.zombie.trigger({delay}) is public, so the multiplayer task can sync a scare to both players later
 - [x] tools/test_zombie.py (desktop, swiftshader)
 - [ ] NOT tried in a headset yet
+
+## Stuck after the zombie scare - run of Sun Oct 18 2026 (Unity in the Quest 3: 'after it jump scared me I'm no longer able to move around, almost like being stuck at the wall')
+- [x] cause: not zombie.js (it never touches the rig, camera or colliders). app.js move() refused any step whose destination was blocked, tested at the REAL head position (rig + headset tracking). When Unity flinched back from the zombie in real life, her head went inside the 20 cm wall/furniture comfort zone; from inside it every thumbstick step (out, along, in) still landed 'blocked', so all movement was refused forever = invisible wall
+- [x] fix (app.js): pen(x, z) = how deep you are in walls/Unity-blocking furniture; okStep() allows a step if it lands free OR if you're already inside and it doesn't take you deeper. So you can always walk out or slide along, never further in. Free-floor behaviour unchanged; zombie.js unchanged
+- [x] test hooks: __rv.fakeXR(session) (stand-in XR session with fake gamepads through the real readXR path), __rv.pen(), __rv.P()
+- [x] tools/test_zombie.py section 4: fake thumbsticks move fwd/back/left/right + snap-turn before a scare, after 3 scares in a row (snap-turning away during each wait), during the scare, straight through each landing spot; flinch 40 cm back into the right wall during a scare -> never pushed deeper, slides along, walks out; all directions after
+- [ ] NOT tried in a headset yet
+
+## Unity Eagle origin video frame - run of Sun Oct 18 2026 (Unity on the call: the origin story film, her song version, in a digital photo frame, click to play)
+- [x] source: her Drive video (1280x720 HEVC, 3:33 incl. song) -> assets/video/unity_eagle_origin.mp4, H.264 High@4.0 720p30 CRF 23 (max 1.8 Mbps) + AAC 128k stereo, faststart, full length (213.1 s), 48 MB
+- [x] assets/img/unity_eagle_origin_still.jpg = frame at 12 s (1024x576), shown until clicked
+- [x] js/originframe.js: black photo frame (screen 34 x 19 cm) standing on the dresser top right of the CRT (x 1.10..1.48, z -2.07..-1.89), next to the bookshelf with the figurine + VHS tapes; turned a little to the room, leaning back on a kickstand
+- [x] click / trigger: play; again: pause (frame held); again: carry on; end -> back to the still. preload=metadata, never autoplays. HRTF panner at the frame. Starting it pauses an episode, lifts the needle, stops the keycard poster; any of those starting pauses it. Hooks RV.media like videoposter.js
+- [x] tools/test_originframe.py (needs a Range-capable server for the end check), all old tests rerun: bed, wall, media, figurine, mirror, videoposter, zombie, socials, 0 errors; find_coplanar: no hits on the frame
+- [ ] NOT tried in a headset yet
