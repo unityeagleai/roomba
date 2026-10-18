@@ -74,7 +74,7 @@ function mkItem(kind, x, z, opts) {
   const it = { kind, mesh: g, home: { x, z }, x, z, eaten: false, respawnAt: 0, tossed: !!(opts && opts.tossed), pop: 0 };
   items.push(it); return it;
 }
-mkItem('sock', 1.95, 0.3); mkItem('note', -0.2, 0.95); mkItem('cable', 1.25, -1.48); mkItem('papers', -0.35, -1.55); mkItem('cartridge', 0.05, -0.55); mkItem('crumb', 1.25, -0.5);
+mkItem('sock', 1.95, 0.3); mkItem('note', -0.2, 0.95); mkItem('cable', 1.25, -1.48); mkItem('papers', -0.35, -1.55); mkItem('crumb', 1.25, -0.5);   // (the season cartridges are real now: media.js)
 R.toss = function (x, z) {
   x = clamp(x, -RV.room.RX + 0.2, RV.room.RX - 0.2); z = clamp(z, -RV.room.RZ + 0.2, RV.room.RZ - 0.2);
   if (RV.blocked(x, z, 0.12, 'roomba')) return null;
@@ -200,7 +200,26 @@ S.wander = {
     if (P.ok && dist() < 2.1 && now > noticeCD && now - lastNotice > 3) return go('notice');
     if (mood.hunger > 0.55 && rand() < dt * 0.6) { const it = nearestItem(2.4); if (it) return go('eat', { it }); }
     if (mood.excite > 0.6 && rand() < dt * 0.2) return go('excited');
+    // a cartridge someone left on the floor: now and then it gets carried off (it finds its way back to the shelf later)
+    if (RV.media && rand() < dt * 0.06) { const c = RV.media.floorCart(B.x, B.z, 3.2); if (c) return go('carry', { c }); }
   }
+};
+S.carry = {
+  enter(d) { setFace('curious'); setLight('eat'); d.ph = 'go'; say(['OOH. SHINY.', 'IS THAT AN EPISODE', 'NOBODY IS USING THIS']); },
+  update(dt, d) {
+    const c = d.c;
+    if (d.ph === 'go') {
+      if (c.state !== 'floor') { say('FINE. KEEP IT.'); return go('wander'); }
+      const D = steer(c.x, c.z, 0.3, 0.02, Math.hypot(c.x - B.x, c.z - B.z) < 0.6);
+      if (D < RAD * 0.8) { RV.media.ride(c); snd('chirp'); look.squish = 1; setFace('happy', 1); say(['CARTRIDGE ACQUIRED', 'THIS IS MINE NOW', 'FINDERS KEEPERS'], true); d.ph = 'haul'; d.t = 0; d.tgt = RV.freeSpot(RAD, 'roomba'); }
+      if (d.t > 20) return go('wander');
+      return;
+    }
+    if (c.state !== 'riding') { say(['HEY. THAT WAS MINE.', 'THIEF'], true); snd('hmph'); return go('wander'); }
+    const D = steer(d.tgt.x, d.tgt.z, 0.32, 0.12);
+    if (D < 0.15 || d.t > 12) { RV.media.unride(c, B.x - Math.sin(B.h) * 0.2, B.z - Math.cos(B.h) * 0.2, true); say(['HIDDEN.', 'NOBODY SAW THAT', 'FOR LATER', 'SAFE HERE'], true); setFace('happy', 1.2); go('wander'); }
+  },
+  exit() { if (sd.c && sd.c.state === 'riding') RV.media.unride(sd.c, B.x - Math.sin(B.h) * 0.2, B.z - Math.cos(B.h) * 0.2, true); }
 };
 S.idle = {
   enter(d) { stop(); d.len = 1.5 + rand() * 2.5; d.dir = rand() < 0.5 ? -1 : 1; if (rand() < 0.4) snd('talk', 2); },

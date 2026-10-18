@@ -307,23 +307,25 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
   blk(x1 - x0, 0.72, z1 - z0, M.wood, cx, 0.36, cz);
   for (const dx of [0.37, 1.12]) for (const dy of [0.22, 0.52]) { blk(0.66, 0.24, 0.012, M.woodDark, dx, dy, z1 + 0.006); blk(0.1, 0.022, 0.02, phong({ color: 0xe6c878, shininess: 80 }), dx, dy, z1 + 0.016); }
   box(x0, x1, z0, z1, 'both', 'dresser');
-  const tx = 0.72, tz = -1.97;
-  blk(0.66, 0.52, 0.46, M.woodDark, tx, 0.72 + 0.26, tz);
-  blk(0.5, 0.44, 0.02, phong({ color: 0x24222c }), tx - 0.06, 0.98, tz + 0.232);
-  blk(0.1, 0.44, 0.02, phong({ color: 0x3c3846 }), tx + 0.26, 0.98, tz + 0.232);
-  for (const yy of [1.12, 1.03]) { const k = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 12), phong({ color: 0xc8c8d8, shininess: 60 })); k.rotation.x = Math.PI / 2; k.position.set(tx + 0.26, yy, tz + 0.245); scene.add(k); }
-  blk(0.015, 0.01, 0.01, new THREE.MeshBasicMaterial({ color: 0x3cff78 }), tx + 0.22, 0.79, tz + 0.245);
+  const tx = 0.72, tz = -1.97, TY = 0.09;   // the TV sits on the console (front-loading slot under the screen)
+  blk(0.66, 0.52, 0.46, M.woodDark, tx, TY + 0.72 + 0.26, tz);
+  blk(0.5, 0.44, 0.02, phong({ color: 0x24222c }), tx - 0.06, TY + 0.98, tz + 0.232);
+  blk(0.1, 0.44, 0.02, phong({ color: 0x3c3846 }), tx + 0.26, TY + 0.98, tz + 0.232);
+  for (const yy of [1.12, 1.03]) { const k = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 12), phong({ color: 0xc8c8d8, shininess: 60 })); k.rotation.x = Math.PI / 2; k.position.set(tx + 0.26, TY + yy, tz + 0.245); scene.add(k); }
+  blk(0.015, 0.01, 0.01, new THREE.MeshBasicMaterial({ color: 0x3cff78 }), tx + 0.22, TY + 0.79, tz + 0.245);
   const ant = phong({ color: 0xc8c8d8, shininess: 90 });
-  for (const s of [-1, 1]) { const a = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.5, 6), ant); a.position.set(tx + s * 0.12, 1.24 + 0.2, tz); a.rotation.z = -s * 0.5; scene.add(a); const bb = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), phong({ color: 0xff3c46 })); bb.position.set(tx + s * 0.24, 1.66, tz); scene.add(bb); }
+  for (const s of [-1, 1]) { const a = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.5, 6), ant); a.position.set(tx + s * 0.12, TY + 1.24 + 0.2, tz); a.rotation.z = -s * 0.5; scene.add(a); const bb = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), phong({ color: 0xff3c46 })); bb.position.set(tx + s * 0.24, TY + 1.66, tz); scene.add(bb); }
   // screen
   const W = 160, H = 120, c = canvas(W, H), x = c.getContext('2d'), id = x.createImageData(W, H), r = rng(2);
   const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.magFilter = THREE.NearestFilter;
-  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.33), new THREE.MeshBasicMaterial({ map: t, toneMapped: false })); scr.position.set(tx - 0.06, 0.98, tz + 0.244); scene.add(scr);
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.33), new THREE.MeshBasicMaterial({ map: t, toneMapped: false })); scr.position.set(tx - 0.06, TY + 0.98, tz + 0.244); scr.userData.dynamic = true; scene.add(scr);
+  RV.tv = { scr, tex: t, tx, tz, TY, sx: tx - 0.06, sy: TY + 0.98, sz: tz + 0.244, sw: 0.42, sh: 0.33 };
   const sprite = new Image(); sprite.src = 'assets/img/roomba_sprite.png';
-  const L = new THREE.PointLight(0x7ab4ff, 0.7, 3.2, 1.5); L.position.set(tx - 0.06, 1.0, tz + 0.6); scene.add(L);
+  const L = new THREE.PointLight(0x7ab4ff, 0.7, 3.2, 1.5); L.position.set(tx - 0.06, TY + 1.0, tz + 0.6); scene.add(L); RV.tv.light = L;
   let acc = 0, mode = 0, modeT = 0, frameN = 0;
   const MODES = ['static', 'roomba', 'static', 'bars'];
   RV.tvTick = (dt, now) => {
+    if (RV.tvBusy) return;   // an episode is on (media.js drives the screen + light)
     acc += dt; modeT += dt; if (acc < 1 / 12) return; acc = 0; frameN++;
     if (modeT > (MODES[mode] === 'static' ? 5 : 9)) { modeT = 0; mode = (mode + 1) % MODES.length; }
     const md = MODES[mode], d = id.data;
@@ -346,9 +348,19 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
     t.needsUpdate = true;
   };
   // the TV cable runs down to a socket (the Roomba's favourite snack is the spare one on the floor)
-  const cab = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(tx + 0.25, 0.8, tz - 0.15), new THREE.Vector3(1.45, 0.6, -2.17), new THREE.Vector3(1.55, 0.02, -2.15), new THREE.Vector3(1.62, 0.02, -2.18), new THREE.Vector3(1.66, 0.3, -2.19)]), 24, 0.008, 6), phong({ color: 0x18161c }));
+  const cab = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(tx + 0.25, TY + 0.8, tz - 0.15), new THREE.Vector3(1.45, 0.6, -2.17), new THREE.Vector3(1.55, 0.02, -2.15), new THREE.Vector3(1.62, 0.02, -2.18), new THREE.Vector3(1.66, 0.3, -2.19)]), 24, 0.008, 6), phong({ color: 0x18161c }));
   scene.add(cab);
   blk(0.08, 0.12, 0.015, phong({ color: 0xece4d0 }), 1.66, 0.3, -RZ + 0.008);
+  // the console the TV stands on: black plastic, brass trim, a front-loading cartridge slot right under the screen
+  const cz0 = -2.12, cz1 = -1.72, ccz = (cz0 + cz1) / 2, cy = 0.72 + TY / 2, brassT = phong({ color: 0xb8913f, shininess: 70, specular: 0x8a6a2a });
+  blk(0.56, TY, cz1 - cz0, phong({ color: 0x1a1a20, shininess: 40, specular: 0x333333 }), tx, cy, ccz);
+  blk(0.56, 0.008, 0.012, brassT, tx, 0.72 + TY - 0.006, cz1 - 0.004);
+  blk(0.56, 0.006, 0.012, brassT, tx, 0.725, cz1 - 0.004);
+  blk(0.15, 0.036, 0.012, phong({ color: 0x050507 }), tx, cy, cz1 + 0.001);            // slot mouth
+  blk(0.16, 0.006, 0.014, brassT, tx, cy + 0.022, cz1 + 0.001); blk(0.16, 0.006, 0.014, brassT, tx, cy - 0.022, cz1 + 0.001);
+  for (let k = 0; k < 5; k++) blk(0.004, 0.05, 0.004, phong({ color: 0x2c2c34 }), tx + 0.16 + k * 0.016, cy, cz1 + 0.002);   // vents
+  for (const s2 of [-1, 1]) blk(0.03, 0.016, 0.01, phong({ color: 0x8a8a96, shininess: 60 }), tx - 0.2 + s2 * 0.025, cy, cz1 + 0.004);   // power + reset
+  RV.consoleSlot = { x: tx, y: cy, z: cz1, w: 0.15, h: 0.036 };
 })();
 
 // ------------------------------------------------------------ the cartridge shelf (one cartridge per episode of the season)
@@ -359,15 +371,11 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
   for (const yy of [0.04, 0.42, 0.82, 1.2]) blk(w - 0.04, 0.025, d, M.wood, cx, yy, cz);
   blk(w - 0.06, 0.3, 0.012, M.woodDark, cx, 0.22, z1 - 0.006);
   box(x0, x1, z0, z1, 'both', 'shelf');
-  const cols = ['#3aa0ff', '#ff3fd1', '#ff8a1f', '#5ce07a', '#ffe14a', '#3ff0e0', '#d6964a'];
-  const lc = canvas(64, 64), lx = lc.getContext('2d'); lx.fillStyle = '#f0e8d0'; lx.fillRect(0, 0, 64, 64); lx.fillStyle = '#100820'; lx.fillRect(6, 30, 52, 4); lx.fillRect(6, 40, 40, 4); lx.fillRect(6, 50, 46, 4); weather(lc, 4, { mottle: 0.2 });
-  const lt = tex(lc);
-  cols.forEach((cc, i) => {
-    const row = i < 4 ? 0.85 : 0.45, col = i < 4 ? i : i - 4;
-    const g = new THREE.Group(); g.position.set(x0 + 0.13 + col * 0.17, row + 0.11, cz + 0.02); g.rotation.z = (i === 5 ? 0.18 : 0); scene.add(g);
-    blk(0.12, 0.17, 0.03, phong({ color: new THREE.Color(cc).multiplyScalar(0.85), shininess: 40 }), 0, 0, 0, g);
-    const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.09), phong({ map: lt })); lab.position.set(0, 0.02, 0.016); g.add(lab);
-  });
+  // VHS tapes (the season cartridges moved to the shelf next to the bed)
+  const vl = canvas(64, 128), vx = vl.getContext('2d'); vx.fillStyle = '#f0e8d0'; vx.fillRect(0, 0, 64, 128); vx.fillStyle = '#100820'; for (let k = 0; k < 5; k++) vx.fillRect(10, 14 + k * 22, 30 + (k * 17) % 16, 5); weather(vl, 5, { mottle: 0.2 });
+  const vt = tex(vl), vm = phong({ color: 0x141418, shininess: 30 });
+  for (let i = 0; i < 6; i++) { const g = new THREE.Group(); g.position.set(x0 + 0.1 + i * 0.045 + (i > 3 ? 0.12 : 0), 0.85 + 0.1, cz + 0.02); g.rotation.z = i === 5 ? 0.35 : 0; scene.add(g); blk(0.035, 0.19, 0.2, vm, 0, 0, 0, g); const lb = new THREE.Mesh(new THREE.PlaneGeometry(0.026, 0.15), phong({ map: vt })); lb.position.set(0, 0, 0.101); g.add(lb); }
+  for (let i = 0; i < 4; i++) blk(0.19, 0.035, 0.2, i % 2 ? vm : phong({ color: 0x2a2a6a, shininess: 30 }), x0 + 0.2 + (i % 2) * 0.012, 0.45 + 0.02 + i * 0.036, cz + 0.02);
   // a boombox on the top, a cassette leaning on it
   blk(0.4, 0.2, 0.12, phong({ color: 0x2a2a30, shininess: 40 }), cx, 1.7, cz + 0.02);
   for (const s of [-1, 1]) { const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.01, 18), phong({ color: 0x111114 })); sp.rotation.x = Math.PI / 2; sp.position.set(cx + s * 0.12, 1.69, cz + 0.083); scene.add(sp); }
@@ -389,15 +397,8 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
   const rug = new THREE.Mesh(new THREE.CircleGeometry(1, 48), phong({ map: t, bumpMap: t, bumpScale: 0.01, transparent: true, alphaTest: 0.5 }));
   rug.rotation.x = -Math.PI / 2; rug.scale.set(1.15, 0.8, 1); rug.position.set(0.55, 0.006, -0.35); scene.add(rug);
   // console
-  const con = new THREE.Group(); con.position.set(0.35, 0, -1.3); con.rotation.y = 0.15; scene.add(con);
-  blk(0.34, 0.06, 0.2, phong({ color: 0x141418, shininess: 50 }), 0, 0.03, 0, con);
-  blk(0.34, 0.025, 0.08, M.woodDark, 0, 0.065, 0.06, con);
-  blk(0.12, 0.04, 0.05, phong({ color: 0x8a5a2a }), 0.06, 0.08, -0.04, con);
-  for (let k = 0; k < 4; k++) blk(0.02, 0.012, 0.02, phong({ color: 0xc0c0c8 }), -0.12 + k * 0.04, 0.066, -0.06, con);
   const js = new THREE.Group(); js.position.set(0.62, 0, -0.95); js.rotation.y = -0.4; scene.add(js);
   blk(0.08, 0.035, 0.08, phong({ color: 0x141418 }), 0, 0.017, 0, js); const stk = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.01, 0.08, 8), phong({ color: 0x141418 })); stk.position.set(0, 0.07, 0); stk.rotation.x = 0.3; js.add(stk); blk(0.016, 0.008, 0.016, phong({ color: 0xff2a2a }), -0.025, 0.04, -0.025, js);
-  const cord = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0.6, 0.01, -0.98), new THREE.Vector3(0.5, 0.01, -1.1), new THREE.Vector3(0.45, 0.01, -1.2), new THREE.Vector3(0.42, 0.03, -1.24)]), 12, 0.004, 5), phong({ color: 0x101012 })); scene.add(cord);
-  box(0.16, 0.54, -1.42, -1.18, 'roomba', 'console');
   // Unity's floor cushion
   const cu = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.1, 20), phong({ color: 0x46c8d2, shininess: 10 })); cu.position.set(0.85, 0.05, -0.75); cu.scale.z = 0.9; scene.add(cu);
   const bt = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.012, 10), phong({ color: 0xff3fd1 })); bt.position.set(0.85, 0.106, -0.75); scene.add(bt);
