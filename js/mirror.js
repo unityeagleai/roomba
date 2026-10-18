@@ -49,7 +49,7 @@ body.position.z = 0.002; root.add(body);
 
 // her picture, exactly as she sent it, unlit so it reads like a memory glowing in the glass
 const imgM = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, visible: false });
-const img = new THREE.Mesh(new THREE.PlaneGeometry(IMG_W, IMG_H), imgM); img.position.z = 0.002 + FD + 0.0015; img.name = 'xanadu memory'; root.add(img);
+const img = new THREE.Mesh(new THREE.PlaneGeometry(IMG_W, IMG_H), imgM); img.position.z = 0.002 + FD + 0.004; img.name = 'xanadu memory'; root.add(img);
 new THREE.TextureLoader().load('assets/img/memory_xanadu_age9.jpg', t => {
   t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; imgM.map = t; imgM.visible = true; imgM.needsUpdate = true; RV.mirror.ready = true;
 }, undefined, e => console.warn('memory mirror image', e && e.type));
