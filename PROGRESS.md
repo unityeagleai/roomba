@@ -17,3 +17,10 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
 - [x] desktop test PASSED (tools/test_media.py, Chromium swiftshader 960x540): poster loads (512x758); all 7 carts click->console->play on CRT (1280 wide, time advancing, no media errors); 3D BIG SCREEN + 3D BACK TO TV + HTML button + F/Esc all toggle; VR selectstart/selectend logic with stand-in controller inserts cart; record plays 251 s clip via HTML panner at deck, pauses episode, stops; Roomba states change (dock, undock, notice, follow, circle, keepAway, wander, eat, bump); 0 console errors. Fixed: HUD was covering the 3D BACK TO TV button (now max-width 44%, pointer-events none).
 - [x] published commit a3e3c60 to unityeagleai/roomba; Pages build "built"; live page loads js/media.js; live smoke test: ep 7 plays from charlie-season, record plays (251 s, panner), 0 errors.
 - [ ] NOT tried on a real Quest yet (trigger grab/release, big screen placement in VR, positional record sound in headset).
+
+## Wall big screen - run of Sun Oct 18 2026 (Unity tested on Quest 3: carts + big screen work, floating screen clipped into a wall)
+- [x] big screen now projects on the front wall exactly across from the TV (x = TV.sx 0.66, z = RZ-0.04, facing -Z, scale 1.15 -> picture 2.76 m wide), between the door frame (x -0.915) and the right wall; clear of picture rail + skirting; depth tested
+- [x] 'look behind you' cue floats ~1.15 m in front of the head when the screen is behind you (>75 deg); hides when you turn to it (<40 deg), after 9 s, or on close
+- [x] video sound panner moves to the wall screen
+- [x] desktop FULL SCREEN button / F keep the old fill-the-view mode
+- [x] tools/test_wall.py PASSED locally + old test_media.py (all 7 carts, record, Roomba) still pass

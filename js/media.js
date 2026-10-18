@@ -1,7 +1,8 @@
 // media.js: the things in the bedroom that play.
 //  - the season's seven brass cartridges on a shelf next to the bed (videos read from the live charlie-season site)
 //  - the console under the CRT: push a cartridge in and the episode plays on the TV, sound from the TV; pull it out, it stops
-//  - a BIG SCREEN button (a large floating screen in VR, fills the view on desktop) and a way back to the TV
+//  - a BIG SCREEN button: the TV throws the picture onto the free wall right across from it (next to the door), with a
+//    'look behind you' cue in front of you; on desktop the FULL SCREEN button / F key still fill the view. And a way back to the TV
 //  - Unity's red record player with her Xanadu single: her own 3D recording, played as stereo, louder near the corner
 //  - the Xanadu poster above it
 (function () {
@@ -155,8 +156,13 @@ bigBtn.position.set(TV.sx, TV.sy - TV.sh / 2 - 0.028, TV.sz + 0.003); bigBtn.vis
 hitBox(0.56, 0.1, 0.12, SLOT.x, SLOT.y, SLOT.z - 0.02, { console: true });
 const screenHit = hitBox(TV.sw, TV.sh, 0.02, TV.sx, TV.sy, TV.sz + 0.01, { screen: true });
 
-// ---------------------------------------------------------------- the big screen (floats in front of you, drawn over everything)
+// ---------------------------------------------------------------- the big screen
+// 'wall': projected on the front wall exactly across from the TV (same x as the TV picture), between the door and the right-hand
+//         corner. That stretch of wall is empty: the door frame ends at x = -0.915, the right wall is at x = RX.
+// 'view': desktop only (FULL SCREEN button / F key), fills the view, drawn over everything.
 const big = new THREE.Group(); big.visible = false; scene.add(big);
+const WALL = { x: TV.sx, y: 1.42, z: RZ - 0.04, s: 1.15 };   // 3.6 cm off the wallpaper, clear of the picture rail and skirting
+let bigMode = 'wall';
 const BW = 2.4, BH = BW * 9 / 16;
 const frameM = new THREE.Mesh(new THREE.PlaneGeometry(BW + 0.08, BH + 0.08), new THREE.MeshBasicMaterial({ color: 0x0b0814, depthTest: false, depthWrite: false })); frameM.renderOrder = 20; big.add(frameM);
 const bigVid = new THREE.Mesh(new THREE.PlaneGeometry(BW, BH), new THREE.MeshBasicMaterial({ map: vtex, depthTest: false, depthWrite: false, toneMapped: false })); bigVid.position.z = 0.002; bigVid.renderOrder = 21; bigVid.userData = { btn: 'pause' }; big.add(bigVid); hitables.push(bigVid);
@@ -168,23 +174,55 @@ const titleC = canvas(1024, 64), titleX = titleC.getContext('2d'), titleT = tex(
 const titleM = new THREE.Mesh(new THREE.PlaneGeometry(BW, BW * 64 / 1024), new THREE.MeshBasicMaterial({ map: titleT, transparent: true, depthTest: false, depthWrite: false, toneMapped: false })); titleM.position.set(0, BH / 2 + 0.11, 0.004); titleM.renderOrder = 22; big.add(titleM);
 function setTitle(ep) { titleX.clearRect(0, 0, 1024, 64); titleX.fillStyle = ep.color; titleX.font = '26px ' + PIX; titleX.textAlign = 'center'; titleX.textBaseline = 'middle'; titleX.fillText('EP ' + ep.number + '  ' + ep.title.toUpperCase(), 512, 34); titleT.needsUpdate = true; }
 const bigHit = [bigVid, backBtn, pauseBtn];
+// on the wall the screen is part of the room (depth tested, so hands, rays and the Roomba sort properly); in 'view' it is drawn on top
+function setBigOnTop(top) { for (const m of [frameM, bigVid, titleM, backBtn, pauseBtn]) { m.material.depthTest = !top; m.material.depthWrite = !top && m !== titleM && m !== backBtn && m !== pauseBtn; m.material.needsUpdate = true; } }
+
+// ---------------------------------------------------------------- 'look behind you' cue, floats in front of your face until you turn round
+function cueTex() {
+  const w = 1024, h = 224, c = canvas(w, h), x = c.getContext('2d');
+  x.fillStyle = 'rgba(16,8,32,0.92)'; x.fillRect(0, 0, w, h); x.strokeStyle = '#ffe14a'; x.lineWidth = 10; x.strokeRect(5, 5, w - 10, h - 10);
+  x.fillStyle = '#ffe14a'; x.font = '58px ' + PIX; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('look behind you', w / 2, h / 2 + 4);
+  return tex(c);
+}
+const CUE_W = 0.62, cue = new THREE.Mesh(new THREE.PlaneGeometry(CUE_W, CUE_W * 224 / 1024), new THREE.MeshBasicMaterial({ map: cueTex(), transparent: true, depthTest: false, depthWrite: false, toneMapped: false }));
+cue.renderOrder = 40; cue.visible = false; cue.name = 'look behind you'; scene.add(cue);
+fontRedraws.push(() => { cue.material.map = cueTex(); cue.material.needsUpdate = true; });
+let cueT = 0;
+const _cf = new V3(), _ct = new V3(), _cto = new V3();
+function headFwd() { camera.getWorldPosition(_hp); camera.getWorldQuaternion(_hq); _cf.set(0, 0, -1).applyQuaternion(_hq); _cf.y = 0; if (_cf.lengthSq() < 1e-4) _cf.set(0, 0, -1); return _cf.normalize(); }
+function screenAngle() { const f = headFwd(); _ct.set(WALL.x - _hp.x, 0, WALL.z - _hp.z); if (_ct.lengthSq() < 1e-4) return 0; _ct.normalize(); return Math.acos(clamp(f.dot(_ct), -1, 1)) * 180 / Math.PI; }
+function cueTarget(out) { const f = headFwd(); camera.getWorldPosition(_hp); return out.set(_hp.x + f.x * 1.15, _hp.y - 0.08, _hp.z + f.z * 1.15); }
+function showCue() { cueTarget(cue.position); camera.getWorldPosition(_hp); cue.lookAt(_hp); cue.visible = true; cueT = 0; }
+function hideCue() { cue.visible = false; }
+function cueTick(dt) {
+  if (!cue.visible) return;
+  cueT += dt;
+  if (!bigOn || bigMode !== 'wall' || cueT > 9 || (cueT > 0.4 && screenAngle() < 40)) { hideCue(); return; }
+  cueTarget(_cto); cue.position.lerp(_cto, 1 - Math.exp(-dt * 5)); camera.getWorldPosition(_hp); cue.lookAt(_hp);
+}
 for (const m of bigHit) m.visible = true;
 let bigOn = false;
 const _hp = new V3(), _hq = new Q(), _fw = new V3();
 function placeBig() {
-  if (renderer.xr.isPresenting) {
-    if (big.parent !== scene) scene.add(big);
-    camera.getWorldPosition(_hp); camera.getWorldQuaternion(_hq); _fw.set(0, 0, -1).applyQuaternion(_hq); _fw.y = 0; if (_fw.lengthSq() < 1e-4) _fw.set(0, 0, -1); _fw.normalize();
-    big.position.set(_hp.x + _fw.x * 1.9, clamp(_hp.y, 1.1, 1.9), _hp.z + _fw.z * 1.9); big.lookAt(_hp.x, big.position.y, _hp.z); big.scale.setScalar(1);
+  if (bigMode === 'wall') {
+    if (big.parent !== scene) { if (big.parent) big.parent.remove(big); scene.add(big); }
+    big.position.set(WALL.x, WALL.y, WALL.z); big.rotation.set(0, Math.PI, 0); big.scale.setScalar(WALL.s);   // faces back into the room, towards the TV
+    setBigOnTop(false);
   } else {
+    setBigOnTop(true);
     if (big.parent !== camera) camera.add(big);
     const th = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), needH = BH + 0.44, needW = BW + 0.1;
     const d = Math.max(needH / (2 * th), needW / (2 * th * camera.aspect)) * 1.02;
     big.position.set(0, -0.02, -d); big.quaternion.identity(); big.scale.setScalar(1);
   }
 }
-function openBig() { if (!playing.ep) return; bigOn = true; placeBig(); big.visible = true; setTitle(playing.ep); updatePanner(); syncHtml(); }
-function closeBig() { bigOn = false; big.visible = false; if (big.parent === camera) { camera.remove(big); scene.add(big); } updatePanner(); syncHtml(); }
+function openBig(mode) {
+  if (!playing.ep) return;
+  bigMode = renderer.xr.isPresenting ? 'wall' : (mode || 'wall');
+  bigOn = true; placeBig(); big.visible = true; setTitle(playing.ep); updatePanner(); syncHtml();
+  if (bigMode === 'wall' && screenAngle() > 75) showCue(); else hideCue();
+}
+function closeBig() { bigOn = false; big.visible = false; hideCue(); if (big.parent === camera) { camera.remove(big); scene.add(big); } updatePanner(); syncHtml(); }
 
 // ---------------------------------------------------------------- audio routing
 let vSrc = null, vPan = null, vGain = null;
@@ -467,17 +505,17 @@ function pick(o, d) {
   });
   const hits = ray.intersectObjects(list, false);
   // the big screen is drawn on top of everything, so it wins when it is open
-  if (bigOn) { const h = hits.find(h => bigHit.includes(h.object)); if (h) return Object.assign({ t: h.distance }, h.object.userData); }
+  if (bigOn && bigMode === 'view') { const h = hits.find(h => bigHit.includes(h.object)); if (h) return Object.assign({ t: h.distance }, h.object.userData); }
   if (!hits.length) return null;
   const h = hits[0]; return Object.assign({ t: h.distance, point: h.point }, h.object.userData);
 }
 function floorOf(o, d) { if (d.y < -0.02) { const t = -o.y / d.y; if (t < 7) return { x: o.x + d.x * t, z: o.z + d.z * t, t }; } return null; }
 function useHit(h, by) {
-  if (h.btn === 'big') { openBig(); click(); return true; }
+  if (h.btn === 'big') { openBig('wall'); click(); return true; }
   if (h.btn === 'back') { closeBig(); click(); return true; }
   if (h.btn === 'pause') { togglePause(); click(); return true; }
   if (h.record) { toggleRecord(); return true; }
-  if (h.screen) { if (video.paused && playing.ep) togglePause(); else openBig(); click(); return true; }
+  if (h.screen) { if (video.paused && playing.ep) togglePause(); else openBig('wall'); click(); return true; }
   if (h.cart) { grab(h.cart, by); return true; }
   if (h.console) { if (inserted) { const c = inserted; ejectCart(); grab(c, by); } else { chirpNo(); } return true; }
   return false;
@@ -564,7 +602,7 @@ function tick(dt, T) {
   }
   // the episode on the TV: the room glows with it
   if (playing.ep && TV.light) TV.light.intensity = video.paused ? 0.25 : 0.5 + Math.sin(T * 9) * 0.06 + Math.sin(T * 23) * 0.04;
-  if (bigOn && renderer.xr.isPresenting) { camera.getWorldPosition(_hp); if (_hp.distanceTo(big.position) > 4.5) placeBig(); }
+  cueTick(dt);
   // record player
   const target = rp.on ? 4.71 : 0;
   rp.spinV += clamp(target - rp.spinV, -dt * 6, dt * 6); rp.spin += rp.spinV * dt; plat.rotation.y = -rp.spin;
@@ -591,14 +629,14 @@ function syncHtml() {
   if (r) r.textContent = rp.on ? 'STOP RECORD' : 'PLAY RECORD';
 }
 setTimeout(() => {
-  const b = $('bBig'); if (b) b.addEventListener('click', e => { e.stopPropagation(); if (bigOn) closeBig(); else openBig(); });
+  const b = $('bBig'); if (b) b.addEventListener('click', e => { e.stopPropagation(); if (bigOn) closeBig(); else openBig('view'); });
   const r = $('bRec'); if (r) r.addEventListener('click', e => { e.stopPropagation(); if (R.audio && !R.audio.ctx && RV.ensureAudio) RV.ensureAudio(); toggleRecord(); });
   syncHtml();
 }, 0);
-addEventListener('keydown', e => { if (e.code === 'Escape' && bigOn) closeBig(); if (e.code === 'KeyF' && playing.ep) { if (bigOn) closeBig(); else openBig(); } });
-addEventListener('resize', () => { if (bigOn && !renderer.xr.isPresenting) placeBig(); });
-renderer.xr.addEventListener('sessionstart', () => { if (bigOn) { closeBig(); openBig(); } syncHtml(); });
-renderer.xr.addEventListener('sessionend', () => { if (bigOn) { closeBig(); openBig(); } for (const [k, c] of holds) if (k !== 'desk') { holds.delete(k); sendHome(c, 'quick'); } syncHtml(); });
+addEventListener('keydown', e => { if (e.code === 'Escape' && bigOn) closeBig(); if (e.code === 'KeyF' && playing.ep) { if (bigOn) closeBig(); else openBig('view'); } });
+addEventListener('resize', () => { if (bigOn && bigMode === 'view' && !renderer.xr.isPresenting) placeBig(); });
+renderer.xr.addEventListener('sessionstart', () => { if (bigOn) { closeBig(); openBig('wall'); } syncHtml(); });
+renderer.xr.addEventListener('sessionend', () => { if (bigOn) { const m = bigMode; closeBig(); openBig(m); } for (const [k, c] of holds) if (k !== 'desk') { holds.delete(k); sendHome(c, 'quick'); } syncHtml(); });
 
 // unlock both media elements inside the first real tap (Quest browser sound rules)
 function unlock() {
@@ -629,5 +667,5 @@ function unlock() {
 if (document.fonts && document.fonts.load) document.fonts.load('20px "Press Start 2P"').then(() => fontRedraws.forEach(f => f())).catch(() => { });
 
 RV.media = { tick, selectStart, selectEnd, click: click2, hoverT, floorCart, ride, unride, unlock, carts, playing: () => (!!playing.ep && !video.paused) || rp.on,
-  _debug: { rPan: () => rPan, bigBtn, backBtn, plHit, playing, video, recAudio, rp, carts, insert, ejectCart, grab, release, openBig, closeBig, toggleRecord, startRecord, stopRecord, holds, pick, sendHome, dropCart, bigOn: () => bigOn, inserted: () => inserted, poster, PL, RP_POS } };
+  _debug: { rPan: () => rPan, vPan: () => vPan, bigBtn, backBtn, plHit, playing, video, recAudio, rp, carts, insert, ejectCart, grab, release, openBig, closeBig, cue, big, WALL, bigMode: () => bigMode, screenAngle, toggleRecord, startRecord, stopRecord, holds, pick, sendHome, dropCart, bigOn: () => bigOn, inserted: () => inserted, poster, PL, RP_POS } };
 })();
