@@ -31,7 +31,7 @@ const tapes = [];
 for (const [sx, sy, r] of [[-1, 1, 0.35], [1, 1, -0.3], [-1, -1, -0.3], [1, -1, 0.4]]) {
   const g = new THREE.PlaneGeometry(0.075, 0.026);
   g.applyMatrix4(new THREE.Matrix4().makeRotationZ(r));
-  g.translate(sx * (W / 2 - 0.02), sy * (H / 2 - 0.012), 0.0015);
+  g.translate(sx * (W / 2 - 0.02), sy * (H / 2 - 0.012), 0.003);
   tapes.push(g);
 }
 const merge = THREE.BufferGeometryUtils && THREE.BufferGeometryUtils.mergeBufferGeometries;
