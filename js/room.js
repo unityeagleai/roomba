@@ -272,10 +272,13 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
   // pillow
   const pg = new THREE.SphereGeometry(0.5, 16, 8); const pil = new THREE.Mesh(pg, phong({ color: 0xf6f2e8 })); pil.scale.set(0.3, 0.12, 0.62); pil.position.set(X0 + 0.28, 0.63, cz); scene.add(pil);
   // the zombie plush (green, pixel eyes)
-  const z = new THREE.Group(); z.position.set(X1 - 0.35, 0.66, Z1 - 0.25); z.rotation.y = -0.6; scene.add(z);
-  const zg = phong({ color: 0x5ce07a }); blk(0.14, 0.16, 0.08, zg, 0, 0.08, 0, z); blk(0.1, 0.1, 0.09, zg, 0, 0.21, 0, z); blk(0.104, 0.03, 0.094, phong({ color: 0x46964f }), 0, 0.27, 0, z);
-  blk(0.02, 0.02, 0.01, M.ink, -0.025, 0.22, 0.046, z); blk(0.02, 0.02, 0.01, M.ink, 0.025, 0.22, 0.046, z); blk(0.05, 0.01, 0.01, phong({ color: 0x287838 }), 0, 0.185, 0.046, z);
-  blk(0.04, 0.1, 0.04, zg, -0.09, 0.1, 0.02, z).rotation.z = 0.8; blk(0.04, 0.1, 0.04, zg, 0.09, 0.1, 0.02, z).rotation.z = -0.8;
+  // it is never merged (userData.dynamic): js/zombie.js wakes it up for the jump scare
+  const z = new THREE.Group(); z.name = 'zombiePlush'; z.position.set(X1 - 0.35, 0.66, Z1 - 0.25); z.rotation.y = -0.6; scene.add(z);
+  const zg = phong({ color: 0x5ce07a }); blk(0.14, 0.16, 0.08, zg, 0, 0.08, 0, z); const zHead = blk(0.1, 0.1, 0.09, zg, 0, 0.21, 0, z); blk(0.104, 0.03, 0.094, phong({ color: 0x46964f }), 0, 0.27, 0, z);
+  const zEyeL = blk(0.02, 0.02, 0.01, M.ink, -0.025, 0.22, 0.046, z), zEyeR = blk(0.02, 0.02, 0.01, M.ink, 0.025, 0.22, 0.046, z), zMouth = blk(0.05, 0.01, 0.01, phong({ color: 0x287838 }), 0, 0.185, 0.046, z);
+  const zArmL = blk(0.04, 0.1, 0.04, zg, -0.09, 0.1, 0.02, z), zArmR = blk(0.04, 0.1, 0.04, zg, 0.09, 0.1, 0.02, z); zArmL.rotation.z = 0.8; zArmR.rotation.z = -0.8;
+  z.traverse(o => { if (o.isMesh) o.userData.dynamic = true; });
+  RV.zombiePlush = { group: z, head: zHead, eyes: [zEyeL, zEyeR], mouth: zMouth, arms: [zArmL, zArmR] };
   box(X0, X1, Z0, Z1, 'player', 'bed');
 })();
 

@@ -64,6 +64,7 @@ const ctrls = [0, 1].map(i => {
   c.addEventListener('disconnected', () => { c.userData.src = null; });
   c.addEventListener('selectstart', () => {
     ensureAudio(); if (RV.media) { RV.media.unlock(); const r = rayFrom(c); if (RV.media.selectStart(c, r.o, r.d)) return; }   // cartridges, TV buttons, record player first
+    if (RV.zombie) { const r = rayFrom(c); if (RV.zombie.select(r.o, r.d)) return; }   // the zombie plush on the bed (it 'does nothing'... for now)
     pointAction(c);
   });
   c.addEventListener('selectend', () => { if (RV.media) { const r = rayFrom(c); RV.media.selectEnd(c, r.o, r.d); } });
@@ -121,7 +122,7 @@ renderer.domElement.addEventListener('pointerdown', e => { drag = { x: e.clientX
 addEventListener('pointermove', e => { if (!drag) return; P.yaw -= (e.clientX - drag.x) * 0.005; P.pitch = clamp(P.pitch - (e.clientY - drag.y) * 0.004, -1.3, 1.0); drag.x = e.clientX; drag.y = e.clientY; });
 addEventListener('pointerup', e => {
   if (!drag) return; const moved = Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy); drag = null;
-  if (moved < 6 && started && !renderer.xr.isPresenting) { ensureAudio(); const ray = new THREE.Raycaster(); ray.setFromCamera({ x: e.clientX / innerWidth * 2 - 1, y: -(e.clientY / innerHeight) * 2 + 1 }, camera); if (RV.media) { RV.media.unlock(); if (RV.media.click(ray.ray.origin.clone(), ray.ray.direction.clone())) return; } act(resolveRay(ray.ray.origin, ray.ray.direction)); }
+  if (moved < 6 && started && !renderer.xr.isPresenting) { ensureAudio(); const ray = new THREE.Raycaster(); ray.setFromCamera({ x: e.clientX / innerWidth * 2 - 1, y: -(e.clientY / innerHeight) * 2 + 1 }, camera); if (RV.media) { RV.media.unlock(); if (RV.media.click(ray.ray.origin.clone(), ray.ray.direction.clone())) return; } if (RV.zombie && RV.zombie.click(ray.ray.origin.clone(), ray.ray.direction.clone())) return; act(resolveRay(ray.ray.origin, ray.ray.direction)); }
 });
 
 // ---------------------------------------------------------- movement + collision (Unity's feet vs furniture and the Roomba)
@@ -160,7 +161,7 @@ function move(dt) {
 function reticleTick() {
   if (!renderer.xr.isPresenting) { reticle.visible = false; return; }
   let shown = false;
-  for (const c of ctrls) { if (!c.userData.src || c.userData.src.handedness !== 'right') continue; const r = rayFrom(c), hit = resolveRay(r.o, r.d), mt = RV.media ? RV.media.hoverT(r.o, r.d) : null; if (mt != null && (!hit || mt < hit.t)) { c.userData.line.scale.z = mt; continue; } if (hit) { reticle.position.set(hit.x, 0.01, hit.z); reticle.material.color.set(hit.roomba ? 0xff7ad6 : 0xffe14a); c.userData.line.scale.z = hit.t; shown = true; } else c.userData.line.scale.z = 3; }
+  for (const c of ctrls) { if (!c.userData.src || c.userData.src.handedness !== 'right') continue; const r = rayFrom(c), hit = resolveRay(r.o, r.d), mt0 = RV.media ? RV.media.hoverT(r.o, r.d) : null, zt = RV.zombie ? RV.zombie.hoverT(r.o, r.d) : null, mt = zt != null && (mt0 == null || zt < mt0) ? zt : mt0; if (mt != null && (!hit || mt < hit.t)) { c.userData.line.scale.z = mt; continue; } if (hit) { reticle.position.set(hit.x, 0.01, hit.z); reticle.material.color.set(hit.roomba ? 0xff7ad6 : 0xffe14a); c.userData.line.scale.z = hit.t; shown = true; } else c.userData.line.scale.z = 3; }
   reticle.visible = shown;
 }
 
@@ -180,7 +181,7 @@ function frame() {
   const dt = Math.min(clock.getDelta(), DTMAX); T += dt;
   move(dt); if (started) voiceTick(dt, T);
   R.update(dt, T);
-  RV.lava.uniforms.uT.value = T; RV.tvTick(dt, T); if (RV.media) RV.media.tick(dt, T); reticleTick(); listenerTick();
+  RV.lava.uniforms.uT.value = T; RV.tvTick(dt, T); if (RV.media) RV.media.tick(dt, T); if (RV.zombie) RV.zombie.tick(dt, T); reticleTick(); listenerTick();
   RV.lavaLight.intensity = 1.05 + Math.sin(T * 0.7) * 0.12;
   RV.dockLed.material.color.setHex(R.state() === 'dock' ? (Math.sin(T * 2) > 0 ? 0x5ce07a : 0x1a4a26) : 0x3a3a3a);
   renderer.render(scene, camera);
@@ -216,7 +217,7 @@ window.__rv = {
   call: () => R.hear('call'), toss: (x, z) => !!R.toss(x, z), pet: () => R.pet(), go: (s, d) => R.go(s, d), mood: m => Object.assign(R.mood, m),
   begin, time: () => T, pitch: v => { P.pitch = v; },
   project: () => { const v = new THREE.Vector3(R.b.x, 0.08, R.b.z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, inFront: v.z < 1 }; },
-  media: () => RV.media && RV.media._debug, media2: () => RV.media,
+  media: () => RV.media && RV.media._debug, zombie: () => RV.zombie && RV.zombie._debug, media2: () => RV.media,
   projectPt: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, inFront: v.z < 1 }; },
   faceAt: (x, y, z) => { camera.getWorldPosition(head); const dx = x - head.x, dz = z - head.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(y - head.y, Math.hypot(dx, dz)); },
   faceIt: () => { const dx = R.b.x - P.x, dz = R.b.z - P.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = -Math.atan2(1.5, Math.hypot(dx, dz)); }, info: () => renderer.info.render

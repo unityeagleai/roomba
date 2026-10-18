@@ -42,3 +42,12 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
 - [x] glow + neon breathe brighter while the record plays (reads RV.media._debug.rp.on in tube.onBeforeRender; media.js untouched)
 - [x] tools/test_mirror.py PASSED (texture 793x1024, aspect kept, clear of liminal poster / fairy lights / corner / rail / skirting, unoccluded 5/5 rays from 5 spots, glow 0.5 -> ~0.9 while playing, back after stop, 0 console errors); test_media, test_wall, test_figurine still pass
 - [ ] NOT seen in a headset yet
+
+## Zombie jump scare - run of Sun Oct 18 2026 (Unity on the call: 'you trigger it, and you think it doesn't do anything, and then it jumps you')
+- [x] room.js: zombie plush group named 'zombiePlush', meshes userData.dynamic (skipped by the static merge), parts exposed as RV.zombiePlush (looks identical at rest)
+- [x] js/zombie.js: trigger at it (VR selectstart, 0.2 m hit sphere) or click it on screen -> NOTHING for a random 2.6-4.2 s -> leaps (0.3 s arc) to 0.8 m in front of wherever you look now, scales 2.4x (~67 cm), turns to face you, red eyes, open mouth, arms reach out, HRTF growl + hiss + 8-bit shriek from where it lands, controller haptics; holds 1.5 s (jitters itself, never moves closer), hops back to exactly its spot (0.75 s), 3 s cooldown
+- [x] comfort: camera/rig never touched; never closer than 0.5 m to the eyes (nose to a wall/furniture it swerves up to ~80 deg to the side, and comes in smaller); one scare at a time (triggers while armed / mid-scare / cooling are swallowed); Roomba startles too (R.hear('loud'))
+- [x] app.js hooks: XR selectstart (after media), desktop click (after media), reticle ray length, frame tick, __rv.zombie() debug
+- [x] RV.zombie.trigger({delay}) is public, so the multiplayer task can sync a scare to both players later
+- [x] tools/test_zombie.py (desktop, swiftshader)
+- [ ] NOT tried in a headset yet
