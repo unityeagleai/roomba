@@ -5,7 +5,7 @@
 const RV = window.RV, R = RV.roomba, { renderer, scene, camera, rig } = RV;
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const P = { x: 0.35, z: 1.45, yaw: 0, pitch: -0.32 };
+const P = { x: 0.35, z: 1.45, yaw: 0, pitch: -0.32, y: 0, eye: 1.6 };
 const PR = 0.2;
 let audio = null, mic = null, started = false;
 const errors = []; addEventListener('error', e => errors.push(String(e.message || e)));
@@ -119,7 +119,7 @@ addEventListener('keydown', e => { keys[e.code] = true; if (!started) return; if
 addEventListener('keyup', e => { keys[e.code] = false; });
 let drag = null;
 renderer.domElement.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }; });
-addEventListener('pointermove', e => { if (!drag) return; P.yaw -= (e.clientX - drag.x) * 0.005; P.pitch = clamp(P.pitch - (e.clientY - drag.y) * 0.004, -1.3, 1.0); drag.x = e.clientX; drag.y = e.clientY; });
+addEventListener('pointermove', e => { if (!drag) return; P.yaw -= (e.clientX - drag.x) * 0.005; P.pitch = clamp(P.pitch - (e.clientY - drag.y) * 0.004, -1.3, pose && pose.S.lie ? 1.55 : 1.0); drag.x = e.clientX; drag.y = e.clientY; });
 addEventListener('pointerup', e => {
   if (!drag) return; const moved = Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy); drag = null;
   if (moved < 6 && started && !renderer.xr.isPresenting) { ensureAudio(); const ray = new THREE.Raycaster(); ray.setFromCamera({ x: e.clientX / innerWidth * 2 - 1, y: -(e.clientY / innerHeight) * 2 + 1 }, camera); if (RV.media) { RV.media.unlock(); if (RV.media.click(ray.ray.origin.clone(), ray.ray.direction.clone())) return; } if (RV.zombie && RV.zombie.click(ray.ray.origin.clone(), ray.ray.direction.clone())) return; act(resolveRay(ray.ray.origin, ray.ray.direction)); }
@@ -142,6 +142,86 @@ function pen(x, z) {
 }
 function okStep(p0, x, z) { if (!RV.blocked(x, z, PR, 'player')) return true; return p0 > 0 && pen(x, z) <= p0 + 1e-4; }
 let fakeSession = null;   // test hook: stand-in XR session with fake thumbsticks
+
+// ---------------------------------------------------------- poses: sit on the beanbag, lie down on the bed
+// Click the beanbag (or point + trigger) and your view drops onto it, seated. Click the bed and you lie on your back with
+// your head on the pillow, looking straight up at the ceiling. In VR your headset keeps full tracking: only the rig moves
+// (never your view direction), and for the first few seconds it keeps re-fitting the height so you can sit or lie down in
+// real life and land in the right spot. Push the stick (or WASD), click the same thing again, or stand up for real to get up.
+const POSES = {
+  beanbag: { seat: { x: 1.95, z: 1.45 }, eye: 0.98, minEye: 0.62, settle: 4, exit: { x: 1.2, z: 0.95 }, yaw: Math.atan2(1.95, 1.45), pitch: -0.12, label: 'beanbag' },
+  bed: { seat: { x: -2.28, z: 0.2 }, eye: 0.76, minEye: 0.66, settle: 7, exit: { x: -0.25, z: 0.2 }, yaw: -Math.PI / 2, pitch: 1.5, lie: true, label: 'bed' },
+};
+let pose = null, lastStand = null;
+const poseHint = (function () {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 64; const x = c.getContext('2d');
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.0625), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, opacity: 0 }));
+  m.position.set(0, -0.16, -0.9); m.renderOrder = 20; m.visible = false; camera.add(m);
+  return { m, show(txt) { x.clearRect(0, 0, 512, 64); x.fillStyle = 'rgba(16,8,32,0.85)'; x.fillRect(0, 0, 512, 64); x.fillStyle = '#ffe14a'; x.font = '18px "Press Start 2P", monospace'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, 256, 33); t.needsUpdate = true; m.userData.t = 4.5; } };
+})();
+function xrHeadLocal() { const c = camera.position, cs = Math.cos(P.yaw), sn = Math.sin(P.yaw); return { x: c.x * cs + c.z * sn, z: -c.x * sn + c.z * cs, y: c.y }; }   // camera offset in world axes (rig yaw applied)
+function fitTo(px, pz, eye, k) {
+  const xr = renderer.xr.isPresenting;
+  if (xr) { const h = xrHeadLocal(); P.x += (px - h.x - P.x) * k; P.z += (pz - h.z - P.z) * k; if (eye != null) P.y += (eye - h.y - P.y) * k; }
+  else { P.x = px; P.z = pz; if (eye != null) P.eye = eye; }
+}
+function sitOn(name) {
+  const S = POSES[name]; if (!S) return false;
+  if (pose && pose.name === name) { standUp('again'); return true; }
+  pose = { name, S, t: 0, lastYaw: P.yaw, high: 0 };
+  if (!renderer.xr.isPresenting) { P.yaw = S.yaw; P.pitch = S.pitch; }     // on a screen you get the view; in VR your head decides
+  fitTo(S.seat.x, S.seat.z, S.eye, 1); pose.lastYaw = P.yaw;
+  poseHint.show(renderer.xr.isPresenting ? 'MOVE THE STICK TO STAND UP' : 'WASD OR CLICK AGAIN TO STAND UP');
+  if (RV.haptic) RV.haptic(0.35, 60); try { R.snd && R.snd('boop'); } catch (e) { }
+  return true;
+}
+function standUp(why) {
+  if (!pose) return; const S = pose.S; pose = null; lastStand = why || 'user';
+  P.y = 0; P.eye = 1.6;
+  if (renderer.xr.isPresenting) { const h = xrHeadLocal(); P.x = S.exit.x - h.x; P.z = S.exit.z - h.z; } else { P.x = S.exit.x; P.z = S.exit.z; P.pitch = -0.2; }
+  poseHint.m.userData.t = 0;
+}
+function poseTick(dt) {
+  const S = pose.S; pose.t += dt;
+  // snap turn while seated: turn on the spot (around your head), not around the rig origin
+  if (renderer.xr.isPresenting && P.yaw !== pose.lastYaw) {
+    const c = camera.position, a = pose.lastYaw, ox = c.x * Math.cos(a) + c.z * Math.sin(a), oz = -c.x * Math.sin(a) + c.z * Math.cos(a), n = xrHeadLocal();
+    P.x += ox - n.x; P.z += oz - n.z;
+  }
+  pose.lastYaw = P.yaw;
+  if (!renderer.xr.isPresenting) return;
+  const h = xrHeadLocal();
+  if (pose.t < S.settle) fitTo(S.seat.x, S.seat.z, S.eye, Math.min(1, dt * 6));   // settling in: follow you while you sit / lie down for real
+  else {
+    if (P.y + h.y < S.minEye) P.y = S.minEye - h.y;                                // never sink through the beanbag / mattress
+    pose.high = P.y + h.y > S.eye + 0.6 ? pose.high + dt : 0;                       // you stood up in real life: get up
+    if (pose.high > 1.2) standUp('stood up');
+  }
+}
+// picking the beanbag and the bed (invisible volumes); the Roomba, the zombie, posters and media keep priority when closer
+const poseHits = [];
+(function () {
+  const inv = new THREE.MeshBasicMaterial({ visible: false });
+  const bb = new THREE.Mesh(new THREE.SphereGeometry(0.47, 16, 10), inv); bb.scale.set(1, 0.62, 1); bb.position.set(1.85, 0.26, 1.35); bb.name = 'beanbag'; scene.add(bb); poseHits.push(bb);
+  const bd = new THREE.Mesh(new THREE.BoxGeometry(1.94, 0.36, 1.08), inv); bd.position.set(-1.59, 0.55, 0.2); bd.name = 'bed'; scene.add(bd); poseHits.push(bd);
+})();
+const poseRay = new THREE.Raycaster(); poseRay.far = 10;
+function posePick(o, d) { poseRay.set(o, d); const h = poseRay.intersectObjects(poseHits, false)[0]; return h ? { t: h.distance, name: h.object.name } : null; }
+function poseMine(o, d, otherT) {
+  const h = posePick(o, d); if (!h) return null;
+  if (otherT != null && otherT < h.t) return null;
+  const z = RV.zombie && RV.zombie.hoverT(o, d); if (z != null && z < h.t) return null;
+  const r = resolveRay(o, d); if (r && r.roomba && r.t < h.t) return null;
+  return h.name;
+}
+if (RV.media) {
+  const M = RV.media, orig = { click: M.click, selectStart: M.selectStart, hoverT: M.hoverT };
+  M.click = function (o, d) { const n = poseMine(o, d, orig.hoverT(o, d)); if (n) return sitOn(n); return orig.click(o, d); };
+  M.selectStart = function (c, o, d) { const n = poseMine(o, d, orig.hoverT(o, d)); if (n) return sitOn(n); return orig.selectStart(c, o, d); };
+  M.hoverT = function (o, d) { const a = orig.hoverT(o, d), h = posePick(o, d); return h && (a == null || h.t < a) ? h.t : a; };
+}
+
 function move(dt) {
   let mx = 0, my = 0;
   const xrMove = renderer.xr.isPresenting || !!fakeSession;
@@ -150,6 +230,8 @@ function move(dt) {
     if (keys.KeyW || keys.ArrowUp) my -= 1; if (keys.KeyS || keys.ArrowDown) my += 1; if (keys.KeyA) mx -= 1; if (keys.KeyD) mx += 1;
     if (keys.ArrowLeft || keys.KeyQ) P.yaw += dt * 1.8; if (keys.ArrowRight || keys.KeyE) P.yaw -= dt * 1.8;
   }
+  if (pose) { if (mx || my) { standUp('move'); mx = my = 0; } else poseTick(dt); }
+  if (poseHint.m.userData.t > 0) { poseHint.m.userData.t -= dt; poseHint.m.visible = true; poseHint.m.material.opacity = Math.min(1, poseHint.m.userData.t); } else poseHint.m.visible = false;
   camera.getWorldPosition(head); const hx = head.x, hz = head.z;
   if (mx || my) {
     const yaw = xrMove ? Math.atan2(-camera.matrixWorld.elements[8], -camera.matrixWorld.elements[10]) + Math.PI : P.yaw;
@@ -161,8 +243,8 @@ function move(dt) {
     if (!okStep(p0, hx + dx, hz)) dx = 0; if (!okStep(p0, hx + dx, hz + dz)) dz = 0;
     P.x += dx; P.z += dz;
   }
-  rig.position.set(P.x, 0, P.z); rig.rotation.y = P.yaw;
-  if (!renderer.xr.isPresenting) camera.rotation.set(P.pitch, 0, 0, 'YXZ');
+  rig.position.set(P.x, P.y, P.z); rig.rotation.y = P.yaw;
+  if (!renderer.xr.isPresenting) { camera.rotation.set(P.pitch, 0, 0, 'YXZ'); camera.position.y = P.eye; }
   rig.updateMatrixWorld(true); camera.getWorldPosition(head);
   // feet + speed for the Roomba
   const pl = R.player; const fxp = head.x, fzp = head.z;
@@ -215,10 +297,10 @@ async function enterVR() {
   ensureAudio();
   try {
     const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
-    await renderer.xr.setSession(session); begin(); $('hud').classList.add('gone');
+    await renderer.xr.setSession(session); if (pose) standUp('vr'); begin(); $('hud').classList.add('gone');
     try { renderer.xr.setFoveation(1); } catch (e) { }
     camera.position.set(0, 0, 0);
-    session.addEventListener('end', () => { camera.position.set(0, 1.6, 0); $('intro').classList.remove('gone'); started = true; });
+    session.addEventListener('end', () => { if (pose) standUp('vr end'); camera.position.set(0, 1.6, 0); $('intro').classList.remove('gone'); started = true; });
   } catch (e) { $('vrState').textContent = 'Could not start VR: ' + (e.message || e); }
 }
 $('bVR').addEventListener('click', enterVR);
@@ -239,6 +321,7 @@ window.__rv = {
   projectPt: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, inFront: v.z < 1 }; },
   faceAt: (x, y, z) => { camera.getWorldPosition(head); const dx = x - head.x, dz = z - head.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(y - head.y, Math.hypot(dx, dz)); },
   fakeXR: sess => { fakeSession = sess || null; }, pen: () => { camera.getWorldPosition(head); return pen(head.x, head.z); }, P: () => ({ x: P.x, z: P.z, yaw: P.yaw }),
+  sit: n => sitOn(n), stand: w => standUp(w || 'test'), pose: () => ({ pose: pose && pose.name, t: pose && +pose.t.toFixed(2), lastStand, P: { x: +P.x.toFixed(3), y: +P.y.toFixed(3), z: +P.z.toFixed(3), eye: P.eye, yaw: +P.yaw.toFixed(3), pitch: +P.pitch.toFixed(3) }, hint: poseHint.m.visible }), posePick: (o, d) => posePick(new THREE.Vector3(...o), new THREE.Vector3(...d).normalize()),
   faceIt: () => { const dx = R.b.x - P.x, dz = R.b.z - P.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = -Math.atan2(1.5, Math.hypot(dx, dz)); }, info: () => renderer.info.render
 };
 })();
