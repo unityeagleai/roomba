@@ -35,3 +35,10 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
 - [x] remaining scanner hits are invisible: undersides on the deck, Roomba bristles/glow under the body, transparent blob shadows (no depth write), hidden controller tips/reticle
 - [x] green figure on the bed = the zombie plush (built on the bed on purpose in room.js); Unity Eagle figurine is on the bookshelf middle board (y 1.2125)
 - [x] tests: tools/test_bed.py close-ups, test_wall.py + test_media.py (with ?eps=charlie-season) + test_figurine.py all pass, 0 errors
+
+## Xanadu memory mirror - run of Sun Oct 18 2026 (Unity asked on the call for a mirror / memory of her nine-year-old self singing into a hairbrush)
+- [x] assets/img/memory_xanadu_age9.jpg = Unity's own image from chat (1189x1536), only scaled to 793x1024 JPEG q86 (~100 KB), text overlay kept
+- [x] js/mirror.js: right wall (x = RX), centre z 0.74, y 1.47, picture 0.60 x 0.775 m in a plum rounded frame with a pink neon tube just outside the picture (covers none of it) + additive neon glow on the wallpaper; 5 draw calls, no extra lights
+- [x] glow + neon breathe brighter while the record plays (reads RV.media._debug.rp.on in tube.onBeforeRender; media.js untouched)
+- [x] tools/test_mirror.py PASSED (texture 793x1024, aspect kept, clear of liminal poster / fairy lights / corner / rail / skirting, unoccluded 5/5 rays from 5 spots, glow 0.5 -> ~0.9 while playing, back after stop, 0 console errors); test_media, test_wall, test_figurine still pass
+- [ ] NOT seen in a headset yet
