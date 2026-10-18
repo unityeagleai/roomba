@@ -42,7 +42,7 @@ OBST.push({ t: 'box', x0: SH.x0, x1: SH.x1, z0: SH.z0, z1: SH.z1, who: 'both', n
   const cx = (SH.x0 + SH.x1) / 2, cz = (SH.z0 + SH.z1) / 2, W = SH.z1 - SH.z0, D = SH.x1 - SH.x0;
   blk(D, 0.03, W, wood, cx, SH.top - 0.015, cz); blk(D, 0.03, W - 0.04, wood, cx, 0.48, cz); blk(D, 0.03, W - 0.04, wood, cx, 0.06, cz);
   for (const s of [-1, 1]) blk(D, SH.top, 0.025, wood, cx, SH.top / 2, cz + s * (W / 2 - 0.0125));
-  blk(0.015, SH.top, W, woodD, SH.x0 + 0.008, SH.top / 2, cz);
+  blk(0.015, SH.top - 0.03, W - 0.05, woodD, SH.x0 + 0.008, (SH.top - 0.03) / 2, cz);   // back panel tucked between the sides and under the top (no shared faces)
   // brass plaque on the front edge
   const pc = canvas(256, 40), px = pc.getContext('2d'); px.fillStyle = '#b8913f'; px.fillRect(0, 0, 256, 40); px.fillStyle = '#5a3a10'; px.font = '18px ' + PIX; px.textAlign = 'center'; px.textBaseline = 'middle'; px.fillText('CHARLIE SEASON', 128, 21);
   const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.04), phong({ map: tex(pc), shininess: 60, specular: 0x6a5020 })); pl.position.set(SH.x1 + 0.001, SH.top - 0.016, cz); pl.rotation.y = Math.PI / 2; stat.add(pl);
@@ -303,12 +303,12 @@ const PL = new THREE.Group(); PL.position.set(RX - 0.19, CAB.top, -1.28); PL.rot
   blk(D, 0.025, W, wood, cx, 0.05, cz);
   for (const s of [-1, 1]) blk(D, CAB.top - 0.04, 0.025, wood, cx, CAB.top / 2, cz + s * (W / 2 - 0.0125));
   blk(D, 0.022, W - 0.05, wood, cx, 0.33, cz);
-  blk(0.012, CAB.top, W, woodD, RX - 0.006, CAB.top / 2, cz);
+  blk(0.012, CAB.top - 0.025, W - 0.054, woodD, RX - 0.006, (CAB.top - 0.025) / 2, cz);   // tucked between the sides and under the top
   for (const s of [-1, 1]) for (const k of [0.04, D - 0.04]) blk(0.03, 0.04, 0.03, woodD, CAB.x0 + k, 0.02, cz + s * (W / 2 - 0.04));
   // the record collection, spines out
   const sp = [0xf2c12e, 0xe8452c, 0x2b7de9, 0xffffff, 0x1b1b1b, 0xff7ad6, 0x40c090, 0xa050e0, 0xe86a1a, 0x20304a];
-  for (let i = 0; i < 22; i++) blk(0.18, 0.18 + (i % 2) * 0.01, 0.009, phong({ color: sp[(i * 7) % sp.length] }), cx + 0.02, 0.0625 + 0.095, CAB.z0 + 0.05 + i * 0.012).rotation.x = (i % 5 === 4) ? 0.12 : 0;
-  for (let i = 0; i < 9; i++) blk(0.19, 0.19, 0.012, phong({ color: sp[(i * 3 + 2) % sp.length] }), cx + 0.02, 0.345 + 0.1, CAB.z0 + 0.06 + i * 0.016).rotation.x = i === 8 ? 0.3 : 0;
+  for (let i = 0; i < 22; i++) blk(0.18, 0.18 + (i % 2) * 0.01, 0.009, phong({ color: sp[(i * 7) % sp.length] }), cx + 0.02 - ((i % 5 === 4) ? 0.003 : 0), 0.0625 + 0.095, CAB.z0 + 0.05 + i * 0.012).rotation.x = (i % 5 === 4) ? 0.12 : 0;   // leaning ones stick out 3 mm so spines don't share a plane
+  for (let i = 0; i < 9; i++) blk(0.19, 0.19, 0.012, phong({ color: sp[(i * 3 + 2) % sp.length] }), cx + 0.02 - (i === 8 ? 0.003 : 0), 0.345 + 0.1, CAB.z0 + 0.06 + i * 0.016).rotation.x = i === 8 ? 0.3 : 0;
   blk(0.2, 0.2, 0.12, phong({ color: 0xd8c8a0 }), cx + 0.02, 0.345 + 0.1, CAB.z1 - 0.15);   // a shoebox of singles
 })();
 // the player itself: a red 80s portable, lid up, a 7-inch on the platter
@@ -330,7 +330,7 @@ const lidPivot = new THREE.Group(); lidPivot.position.set(0, PH, -PD / 2); lidPi
 blk(PW, 0.016, PD, RED, 0, 0.008, PD / 2, lidPivot);
 const grill = decal(0.2, 0.2, (g, w, h) => { g.fillStyle = '#efe2c4'; g.beginPath(); g.arc(w / 2, h / 2, w * 0.48, 0, 7); g.fill(); g.fillStyle = '#8a7a60'; for (let y = 0; y < h; y += 22) for (let x = 0; x < w; x += 22) if ((x - w / 2) ** 2 + (y - h / 2) ** 2 < (w * 0.44) ** 2) { g.beginPath(); g.arc(x + 11, y + 11, 5, 0, 7); g.fill(); } }, 0, -0.0005, PD / 2, lidPivot, Math.PI / 2);
 grill.rotation.x = Math.PI / 2;
-decal(0.12, 0.024, (g, w, h) => { g.fillStyle = '#d8b04a'; g.fillRect(0, 0, w, h); g.fillStyle = '#5a1010'; g.font = 'bold ' + Math.round(h * 0.62) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('DISCO KID', w / 2, h / 2 + 1); }, 0, -0.0006, PD - 0.03, lidPivot, Math.PI / 2);
+decal(0.12, 0.024, (g, w, h) => { g.fillStyle = '#d8b04a'; g.fillRect(0, 0, w, h); g.fillStyle = '#5a1010'; g.font = 'bold ' + Math.round(h * 0.62) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('DISCO KID', w / 2, h / 2 + 1); }, 0, -0.0012, PD - 0.03, lidPivot, Math.PI / 2);
 // platter + record (spins), spindle and the yellow 45 adapter
 const plat = new THREE.Group(); plat.position.set(-0.045, PH + 0.004, 0.005); PL.add(plat);
 const mat = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.008, 40), phong({ color: 0x1c1c1c })); mat.position.y = 0.004; plat.add(mat);
@@ -646,6 +646,7 @@ function unlock() {
 
 // ================================================================ merge the static furniture (fewer draw calls on the Quest)
 (function merge() {
+  if (RV.QS && RV.QS.has('nomerge')) return;   // debug: keep every piece separate
   stat.updateMatrixWorld(true);
   const groups = new Map();
   stat.traverse(o => { if (o.isMesh) { const k = o.material.uuid; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(o); } });

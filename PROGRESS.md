@@ -24,3 +24,14 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
 - [x] video sound panner moves to the wall screen
 - [x] desktop FULL SCREEN button / F keep the old fill-the-view mode
 - [x] tools/test_wall.py PASSED locally + old test_media.py (all 7 carts, record, Roomba) still pass
+
+## Z-fighting fix - run of Sun Oct 18 2026 (Unity's phone screenshot: wood flickering through the bedspread at the foot end)
+- [x] cause: the quilt box ended exactly on the footboard's outer face (x = X1) -> same plane, wood/blanket flicker; side rails also ran through head/footboard (shared faces)
+- [x] bed: quilt overhangs 3 cm past the frame on both sides and the foot end (QOV), quilt material polygonOffset (-1,-2) as extra; side rails now run headboard->footboard only
+- [x] tools/find_coplanar.py: scans every mesh (use ?nomerge, new debug flag that skips the static merges) for same-facing overlapping triangles within EPS. Fixed all visible 0 mm hits:
+  bookshelf (sides under top board, boards between sides, back panel tucked in), VHS leaning tape (4 mm back), figurine plinth rim (open band, caps were on the disc top),
+  console brass trims (0.564 wide), cart shelf + record cabinet back panels tucked in, leaning records out 3 mm, skirting/picture rail corners, dock base plate, zombie plush hair cap, record lid label, socks, crumbs
+- [x] camera near 0.03 -> 0.05 (finer depth everywhere)
+- [x] remaining scanner hits are invisible: undersides on the deck, Roomba bristles/glow under the body, transparent blob shadows (no depth write), hidden controller tips/reticle
+- [x] green figure on the bed = the zombie plush (built on the bed on purpose in room.js); Unity Eagle figurine is on the bookshelf middle board (y 1.2125)
+- [x] tests: tools/test_bed.py close-ups, test_wall.py + test_media.py (with ?eps=charlie-season) + test_figurine.py all pass, 0 errors

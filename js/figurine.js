@@ -22,7 +22,7 @@ RV.figurine = { root, ready: false };
   const blackM = new THREE.MeshPhongMaterial({ color: 0x15141a, shininess: 40, specular: 0x333333 });
   const brassM = new THREE.MeshPhongMaterial({ color: 0xb8913f, shininess: 70, specular: 0x8a6a2a });
   const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.08, PLINTH_H, 28), blackM); disc.position.y = PLINTH_H / 2; root.add(disc);
-  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.0765, 0.0765, 0.004, 28), brassM); rim.position.y = PLINTH_H - 0.002; root.add(rim);
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.0765, 0.0765, 0.004, 28, 1, true), brassM); rim.position.y = PLINTH_H - 0.002; /* open band: its caps used to sit exactly on the disc's top (z-fighting) */ root.add(rim);
   const c = document.createElement('canvas'); c.width = 128; c.height = 32; const x = c.getContext('2d');
   x.fillStyle = '#b8913f'; x.fillRect(0, 0, 128, 32); x.fillStyle = '#2a1a08'; x.fillRect(3, 3, 122, 26); x.fillStyle = '#ffe14a';
   x.font = '14px "Press Start 2P", monospace'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('1P UNITY', 64, 17);

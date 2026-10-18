@@ -19,7 +19,7 @@ if (isHeadset) renderer.xr.setFramebufferScaleFactor(0.9);
 document.getElementById('stage').appendChild(renderer.domElement);
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x06040c);
 scene.fog = new THREE.Fog(0x0a0614, 7, 16);
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.03, 60);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 60);   // near 5 cm (was 3 cm): ~1.7x finer depth, less z-fighting on thin decals
 const rig = new THREE.Group(); rig.add(camera); scene.add(rig);
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 Object.assign(RV, { renderer, scene, camera, rig });
@@ -199,10 +199,10 @@ RV.blk = blk;
   weather(c, 61, { mottle: 0.25, grain: 0.1, fn: (u, v, n) => [n(u * 200, 1) > 0.85 ? 0.6 : 1, 0] });
   const mt = phong({ map: tex(c, [4, 1]) });
   blk(RX * 2, 0.12, 0.02, mt, 0, 0.06, -RZ + 0.01); blk(RX * 2, 0.12, 0.02, mt, 0, 0.06, RZ - 0.01);
-  blk(0.02, 0.12, RZ * 2, mt, -RX + 0.01, 0.06, 0); blk(0.02, 0.12, RZ * 2, mt, RX - 0.01, 0.06, 0);
+  blk(0.02, 0.12, RZ * 2 - 0.04, mt, -RX + 0.01, 0.06, 0); blk(0.02, 0.12, RZ * 2 - 0.04, mt, RX - 0.01, 0.06, 0);   // side runs butt into the front/back runs (no shared faces in the corners)
   const pr = phong({ color: 0x543a84 });
   blk(RX * 2, 0.04, 0.02, pr, 0, RH - 0.12, -RZ + 0.01); blk(RX * 2, 0.04, 0.02, pr, 0, RH - 0.12, RZ - 0.01);
-  blk(0.02, 0.04, RZ * 2, pr, -RX + 0.01, RH - 0.12, 0); blk(0.02, 0.04, RZ * 2, pr, RX - 0.01, RH - 0.12, 0);
+  blk(0.02, 0.04, RZ * 2 - 0.04, pr, -RX + 0.01, RH - 0.12, 0); blk(0.02, 0.04, RZ * 2 - 0.04, pr, RX - 0.01, RH - 0.12, 0);
 })();
 
 // ------------------------------------------------------------ window with the night city + pink curtains (back wall, left)
@@ -248,7 +248,8 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
   const X0 = -RX, X1 = -0.6, Z0 = -0.35, Z1 = 0.75, cx = (X0 + X1) / 2, cz = (Z0 + Z1) / 2, L = X1 - X0, Wd = Z1 - Z0;
   blk(0.06, 1.05, Wd + 0.06, M.wood, X0 + 0.03, 0.525, cz);                                  // headboard
   blk(0.04, 0.32, Wd - 0.2, phong({ color: 0xc4844f }), X0 + 0.07, 0.8, cz);
-  blk(L, 0.16, 0.05, M.wood, cx, 0.3, Z0 + 0.025); blk(L, 0.16, 0.05, M.wood, cx, 0.3, Z1 - 0.025); blk(0.05, 0.3, Wd, M.wood, X1 - 0.025, 0.37, cz);
+  const rL = L - 0.11, rX = X0 + 0.06 + rL / 2;   // side rails run from the headboard to the footboard, not through them (their faces used to z-fight)
+  blk(rL, 0.16, 0.05, M.wood, rX, 0.3, Z0 + 0.025); blk(rL, 0.16, 0.05, M.wood, rX, 0.3, Z1 - 0.025); blk(0.05, 0.3, Wd, M.wood, X1 - 0.025, 0.37, cz);
   for (const [lx, lz] of [[X0 + 0.1, Z0 + 0.05], [X0 + 0.1, Z1 - 0.05], [X1 - 0.05, Z0 + 0.05], [X1 - 0.05, Z1 - 0.05]]) { blk(0.06, 0.22, 0.06, M.woodDark, lx, 0.11, lz); box(lx - 0.03, lx + 0.03, lz - 0.03, lz + 0.03, 'roomba', 'bed leg'); }
   // dark under the bed
   const sh = new THREE.Mesh(new THREE.PlaneGeometry(L, Wd), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55, depthWrite: false })); sh.rotation.x = -Math.PI / 2; sh.position.set(cx, 0.004, cz); scene.add(sh);
@@ -262,16 +263,17 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
   for (let xx = 0; xx < 512; xx += 32) { q.fillStyle = rgb(255, 63, 209); q.beginPath(); q.moveTo(xx, 256); q.lineTo(xx + 16, 222); q.lineTo(xx + 32, 256); q.fill(); q.beginPath(); q.moveTo(xx, 0); q.lineTo(xx + 16, 34); q.lineTo(xx + 32, 0); q.fill(); }
   for (let yy = 60; yy < 200; yy += 34) for (let xx = 10 + (yy % 68 ? 18 : 0); xx < 512; xx += 40) { q.fillStyle = rgb(255, 225, 74); q.fillRect(xx, yy, 9, 9); q.strokeStyle = rgb(16, 8, 32); q.lineWidth = 3; q.beginPath(); q.moveTo(xx + 18, yy + 16); q.lineTo(xx + 26, yy + 8); q.stroke(); }
   weather(qc, 33, { mottle: 0.28, grain: 0.1, fn: (u, v, n) => [n(u * 30, v * 15) > 0.8 ? 0.82 : 1, 0] });
-  const qt = tex(qc), quilt = phong({ map: qt, bumpMap: qt, bumpScale: 0.005 });
+  const qt = tex(qc), quilt = phong({ map: qt, bumpMap: qt, bumpScale: 0.005, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });   // offset: extra insurance on phones
   const qg = new THREE.BoxGeometry(1, 1, 1, 12, 2, 8), qp = qg.attributes.position;
   for (let i = 0; i < qp.count; i++) { const px = qp.getX(i), py = qp.getY(i), pz = qp.getZ(i); qp.setY(i, py + Math.sin(px * 9) * 0.04 * (py > 0 ? 1 : 0) + Math.sin(pz * 7 + px * 3) * 0.03 * (py > 0 ? 1 : 0)); }
   qg.computeVertexNormals();
-  const qm = new THREE.Mesh(qg, quilt); qm.scale.set(L * 0.66, 0.26, Wd + 0.06); qm.position.set(X1 - L * 0.33, 0.47, cz); scene.add(qm);
+  const qm = new THREE.Mesh(qg, quilt); const QOV = 0.03;   // overhang past the frame on the sides and at the foot end, so blanket and wood never share a plane
+  qm.scale.set(L * 0.66 + QOV, 0.26, Wd + 2 * QOV); qm.position.set(X1 - L * 0.33 + QOV / 2, 0.47, cz); scene.add(qm);
   // pillow
   const pg = new THREE.SphereGeometry(0.5, 16, 8); const pil = new THREE.Mesh(pg, phong({ color: 0xf6f2e8 })); pil.scale.set(0.3, 0.12, 0.62); pil.position.set(X0 + 0.28, 0.63, cz); scene.add(pil);
   // the zombie plush (green, pixel eyes)
   const z = new THREE.Group(); z.position.set(X1 - 0.35, 0.66, Z1 - 0.25); z.rotation.y = -0.6; scene.add(z);
-  const zg = phong({ color: 0x5ce07a }); blk(0.14, 0.16, 0.08, zg, 0, 0.08, 0, z); blk(0.1, 0.1, 0.09, zg, 0, 0.21, 0, z); blk(0.1, 0.03, 0.09, phong({ color: 0x46964f }), 0, 0.27, 0, z);
+  const zg = phong({ color: 0x5ce07a }); blk(0.14, 0.16, 0.08, zg, 0, 0.08, 0, z); blk(0.1, 0.1, 0.09, zg, 0, 0.21, 0, z); blk(0.104, 0.03, 0.094, phong({ color: 0x46964f }), 0, 0.27, 0, z);
   blk(0.02, 0.02, 0.01, M.ink, -0.025, 0.22, 0.046, z); blk(0.02, 0.02, 0.01, M.ink, 0.025, 0.22, 0.046, z); blk(0.05, 0.01, 0.01, phong({ color: 0x287838 }), 0, 0.185, 0.046, z);
   blk(0.04, 0.1, 0.04, zg, -0.09, 0.1, 0.02, z).rotation.z = 0.8; blk(0.04, 0.1, 0.04, zg, 0.09, 0.1, 0.02, z).rotation.z = -0.8;
   box(X0, X1, Z0, Z1, 'player', 'bed');
@@ -354,8 +356,8 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
   // the console the TV stands on: black plastic, brass trim, a front-loading cartridge slot right under the screen
   const cz0 = -2.12, cz1 = -1.72, ccz = (cz0 + cz1) / 2, cy = 0.72 + TY / 2, brassT = phong({ color: 0xb8913f, shininess: 70, specular: 0x8a6a2a });
   blk(0.56, TY, cz1 - cz0, phong({ color: 0x1a1a20, shininess: 40, specular: 0x333333 }), tx, cy, ccz);
-  blk(0.56, 0.008, 0.012, brassT, tx, 0.72 + TY - 0.006, cz1 - 0.004);
-  blk(0.56, 0.006, 0.012, brassT, tx, 0.725, cz1 - 0.004);
+  blk(0.564, 0.008, 0.012, brassT, tx, 0.72 + TY - 0.006, cz1 - 0.004);   // trims 2 mm proud of the console sides (they used to share its side faces)
+  blk(0.564, 0.006, 0.012, brassT, tx, 0.725, cz1 - 0.004);
   blk(0.15, 0.036, 0.012, phong({ color: 0x050507 }), tx, cy, cz1 + 0.001);            // slot mouth
   blk(0.16, 0.006, 0.014, brassT, tx, cy + 0.022, cz1 + 0.001); blk(0.16, 0.006, 0.014, brassT, tx, cy - 0.022, cz1 + 0.001);
   for (let k = 0; k < 5; k++) blk(0.004, 0.05, 0.004, phong({ color: 0x2c2c34 }), tx + 0.16 + k * 0.016, cy, cz1 + 0.002);   // vents
@@ -366,15 +368,16 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
 // ------------------------------------------------------------ the cartridge shelf (one cartridge per episode of the season)
 (function () {
   const x0 = 1.7, x1 = RX - 0.04, z0 = -RZ, z1 = -1.86, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, w = x1 - x0, d = z1 - z0;
-  blk(w, 0.03, d, M.wood, cx, 1.585, cz); blk(0.03, 1.6, d, M.wood, x0 + 0.015, 0.8, cz); blk(0.03, 1.6, d, M.wood, x1 - 0.015, 0.8, cz);
-  blk(w, 1.6, 0.01, phong({ color: 0x2e1a16 }), cx, 0.8, z0 + 0.012);
-  for (const yy of [0.04, 0.42, 0.82, 1.2]) blk(w - 0.04, 0.025, d, M.wood, cx, yy, cz);
+  // pieces butt against each other instead of overlapping in the same plane (no z-fighting at the joints)
+  blk(w, 0.03, d, M.wood, cx, 1.585, cz); blk(0.03, 1.57, d, M.wood, x0 + 0.015, 0.785, cz); blk(0.03, 1.57, d, M.wood, x1 - 0.015, 0.785, cz);
+  blk(w - 0.064, 1.57, 0.01, phong({ color: 0x2e1a16 }), cx, 0.785, z0 + 0.012);
+  for (const yy of [0.04, 0.42, 0.82, 1.2]) blk(w - 0.06, 0.025, d, M.wood, cx, yy, cz);
   blk(w - 0.06, 0.3, 0.012, M.woodDark, cx, 0.22, z1 - 0.006);
   box(x0, x1, z0, z1, 'both', 'shelf');
   // VHS tapes (the season cartridges moved to the shelf next to the bed)
   const vl = canvas(64, 128), vx = vl.getContext('2d'); vx.fillStyle = '#f0e8d0'; vx.fillRect(0, 0, 64, 128); vx.fillStyle = '#100820'; for (let k = 0; k < 5; k++) vx.fillRect(10, 14 + k * 22, 30 + (k * 17) % 16, 5); weather(vl, 5, { mottle: 0.2 });
   const vt = tex(vl), vm = phong({ color: 0x141418, shininess: 30 });
-  for (let i = 0; i < 6; i++) { const g = new THREE.Group(); g.position.set(x0 + 0.1 + i * 0.045 + (i > 3 ? 0.12 : 0), 0.85 + 0.1, cz + 0.02); g.rotation.z = i === 5 ? 0.35 : 0; scene.add(g); blk(0.035, 0.19, 0.2, vm, 0, 0, 0, g); const lb = new THREE.Mesh(new THREE.PlaneGeometry(0.026, 0.15), phong({ map: vt })); lb.position.set(0, 0, 0.101); g.add(lb); }
+  for (let i = 0; i < 6; i++) { const g = new THREE.Group(); g.position.set(x0 + 0.1 + i * 0.045 + (i > 3 ? 0.12 : 0), 0.85 + 0.1, cz + 0.02 - (i === 5 ? 0.004 : 0)); g.rotation.z = i === 5 ? 0.35 : 0; scene.add(g); blk(0.035, 0.19, 0.2, vm, 0, 0, 0, g); const lb = new THREE.Mesh(new THREE.PlaneGeometry(0.026, 0.15), phong({ map: vt })); lb.position.set(0, 0, 0.101); g.add(lb); }
   for (let i = 0; i < 4; i++) blk(0.19, 0.035, 0.2, i % 2 ? vm : phong({ color: 0x2a2a6a, shininess: 30 }), x0 + 0.2 + (i % 2) * 0.012, 0.45 + 0.02 + i * 0.036, cz + 0.02);
   // a boombox on the top, a cassette leaning on it
   blk(0.4, 0.2, 0.12, phong({ color: 0x2a2a30, shininess: 40 }), cx, 1.7, cz + 0.02);
@@ -430,7 +433,7 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
 (function () {
   const g = new THREE.Group(); g.position.set(-1.0, 0, -RZ); scene.add(g);
   blk(0.26, 0.14, 0.07, phong({ color: 0x1c1c22, shininess: 40 }), 0, 0.07, 0.035, g);
-  blk(0.26, 0.012, 0.16, phong({ color: 0x24242a }), 0, 0.006, 0.12, g);
+  blk(0.264, 0.012, 0.16, phong({ color: 0x24242a }), 0, 0.006, 0.12, g);
   const led = blk(0.03, 0.012, 0.005, new THREE.MeshBasicMaterial({ color: 0x5ce07a }), 0, 0.11, 0.072, g); led.userData.dynamic = true; RV.dockLed = led;
   for (const s of [-1, 1]) blk(0.03, 0.004, 0.06, phong({ color: 0xc8c8d8, shininess: 90 }), s * 0.06, 0.014, 0.12, g);
   // tiny gold crown sticker on the dock (it insists)
@@ -455,6 +458,7 @@ const lamp = new THREE.PointLight(0xffd6a0, 0.45, 6, 1.2); lamp.position.set(0.3
 
 // ------------------------------------------------------------ merge the static room into a few draw calls (Quest likes this)
 (function () {
+  if (QS.has('nomerge')) return;   // debug: keep every piece separate (used by tools/find_coplanar.py)
   const groups = new Map(), victims = [];
   scene.updateMatrixWorld(true);
   scene.traverse(o => {
