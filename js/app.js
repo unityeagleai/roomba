@@ -91,7 +91,7 @@ function pointAction(c) { ensureAudio(); const r = rayFrom(c); act(resolveRay(r.
 // ---------------------------------------------------------- XR stick reading (from Between Signals)
 let snapReady = true; const btnPrev = {};
 function readXR() {
-  const s = renderer.xr.getSession(); if (!s) return [0, 0];
+  const s = fakeSession || renderer.xr.getSession(); if (!s) return [0, 0];
   let mx = 0, my = 0;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue; const ax = gp.axes || [];
@@ -128,19 +128,37 @@ addEventListener('pointerup', e => {
 // ---------------------------------------------------------- movement + collision (Unity's feet vs furniture and the Roomba)
 const head = new THREE.Vector3();
 let lastFeet = null;
+// how deep (metres) a PR-radius body at (x, z) sits inside the walls or Unity-blocking furniture; 0 = free
+function pen(x, z) {
+  const { RX, RZ } = RV.room; let d = Math.max(0, x - (RX - PR), (-RX + PR) - x, z - (RZ - PR), (-RZ + PR) - z);
+  for (const o of RV.obstacles) {
+    if (o.who !== 'both' && o.who !== 'player') continue;
+    if (o.t === 'box') {
+      const cx = clamp(x, o.x0, o.x1), cz = clamp(z, o.z0, o.z1), out = Math.hypot(x - cx, z - cz);
+      d = Math.max(d, out > 0 ? PR - out : PR + Math.min(x - o.x0, o.x1 - x, z - o.z0, o.z1 - z));
+    } else d = Math.max(d, PR + o.r - Math.hypot(x - o.x, z - o.z));
+  }
+  return d;
+}
+function okStep(p0, x, z) { if (!RV.blocked(x, z, PR, 'player')) return true; return p0 > 0 && pen(x, z) <= p0 + 1e-4; }
+let fakeSession = null;   // test hook: stand-in XR session with fake thumbsticks
 function move(dt) {
   let mx = 0, my = 0;
-  if (renderer.xr.isPresenting) [mx, my] = readXR();
+  const xrMove = renderer.xr.isPresenting || !!fakeSession;
+  if (xrMove) [mx, my] = readXR();
   else {
     if (keys.KeyW || keys.ArrowUp) my -= 1; if (keys.KeyS || keys.ArrowDown) my += 1; if (keys.KeyA) mx -= 1; if (keys.KeyD) mx += 1;
     if (keys.ArrowLeft || keys.KeyQ) P.yaw += dt * 1.8; if (keys.ArrowRight || keys.KeyE) P.yaw -= dt * 1.8;
   }
   camera.getWorldPosition(head); const hx = head.x, hz = head.z;
   if (mx || my) {
-    const yaw = renderer.xr.isPresenting ? Math.atan2(-camera.matrixWorld.elements[8], -camera.matrixWorld.elements[10]) + Math.PI : P.yaw;
+    const yaw = xrMove ? Math.atan2(-camera.matrixWorld.elements[8], -camera.matrixWorld.elements[10]) + Math.PI : P.yaw;
     const sp = 1.3 * dt, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
     let dx = (fx * -my + rx * mx) * sp, dz = (fz * -my + rz * mx) * sp;
-    if (RV.blocked(hx + dx, hz, PR, 'player')) dx = 0; if (RV.blocked(hx + dx, hz + dz, PR, 'player')) dz = 0;
+    // a step is fine if it lands somewhere free, or (when your real head is already inside a wall/furniture zone, e.g. you
+    // flinched back from the zombie in real life) if it doesn't take you any deeper: sliding along or out always works
+    const p0 = pen(hx, hz);
+    if (!okStep(p0, hx + dx, hz)) dx = 0; if (!okStep(p0, hx + dx, hz + dz)) dz = 0;
     P.x += dx; P.z += dz;
   }
   rig.position.set(P.x, 0, P.z); rig.rotation.y = P.yaw;
@@ -220,6 +238,7 @@ window.__rv = {
   media: () => RV.media && RV.media._debug, zombie: () => RV.zombie && RV.zombie._debug, media2: () => RV.media,
   projectPt: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, inFront: v.z < 1 }; },
   faceAt: (x, y, z) => { camera.getWorldPosition(head); const dx = x - head.x, dz = z - head.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(y - head.y, Math.hypot(dx, dz)); },
+  fakeXR: sess => { fakeSession = sess || null; }, pen: () => { camera.getWorldPosition(head); return pen(head.x, head.z); }, P: () => ({ x: P.x, z: P.z, yaw: P.yaw }),
   faceIt: () => { const dx = R.b.x - P.x, dz = R.b.z - P.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = -Math.atan2(1.5, Math.hypot(dx, dz)); }, info: () => renderer.info.render
 };
 })();
