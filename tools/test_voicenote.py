@@ -1,8 +1,8 @@
 """Desktop test for Unity's voice note screen + Vocial link card on the left wall above the cartridge shelf: placement clear of
 the photo wall, cartridge shelf, socials poster and door; nothing blocks it from the usual spots; still + play icon at rest, no
 autoplay; a real mouse click plays it with sound through a panner, click pauses, click resumes, the end goes back to the still;
-a VR-style selectStart ray toggles it; it and the origin frame / keycard poster pause each other; clicking the card opens
-vocial.app/@unityeagle in a new tab; when the tab is blocked a card with the link shows; the light switch dims the bezel and
+a VR-style selectStart ray toggles it; it and the origin frame / keycard poster pause each other; the card is a plain note:
+clicking it (mouse or VR ray) opens no tab, shows no overlay and leaves the video alone; the light switch dims the bezel and
 card; floor clicks unchanged. Usage: python3 tools/test_voicenote.py URL OUTDIR"""
 import sys, json, os
 from playwright.sync_api import sync_playwright
@@ -62,26 +62,20 @@ with sync_playwright() as p:
     ev('RV.voiceNote._debug.play()'); real(1500)
     res['checks']['note_pauses_origin'] = {'note': st(), 'origin': ev('RV.originFrame._debug.state()')}
     ev('RV.voiceNote._debug.rest("test")'); ev('RV.originFrame._debug.rest && RV.originFrame._debug.rest("test")')
-    # card click opens the Vocial page in a new tab
+    # the card is just a note now: clicking it (mouse or VR ray) opens nothing and doesn't touch the video
     ev('__rv.faceAt(-2.6, 1.32, 1.43)'); W(400)
     cp = ev('(() => { const c = new THREE.Vector3(); RV.voiceNote.card.getWorldPosition(c); return __rv.projectPt(c.x, c.y, c.z); })()')
     pg.screenshot(path=f'{OUT}/06_card.png')
-    try:
-        with ctx.expect_page(timeout=8000) as np:
-            pg.mouse.click(cp['x'], cp['y'])
-        newp = np.value; newp.wait_for_load_state('domcontentloaded', timeout=15000)
-        res['checks']['card_opens_tab'] = {'url': newp.url, 'title': newp.title(), 'ok': newp.url.startswith('https://vocial.app/@unityeagle')}
-        newp.close()
-    except Exception as e:
-        res['checks']['card_opens_tab'] = {'error': str(e)[:300]}
-    res['checks']['card_state'] = {'opens': st(), 'lastOpenOk': ev('RV.voiceNote.lastOpenOk'), 'overlayShown': ev('!!document.getElementById("vocialCard") && document.getElementById("vocialCard").style.display')}
-    # blocked popup -> card with the link
-    ev('window.__wo = window.open; window.open = () => null')
-    pg.mouse.click(cp['x'], cp['y']); real(500)
-    res['checks']['blocked_shows_card'] = ev('''(() => { const o = document.getElementById('vocialCard'); return { shown: !!o && o.style.display === 'flex', href: o && o.querySelector('#vocialGo').href, target: o && o.querySelector('#vocialGo').target, msg: o && o.querySelector('#vocialMsg').textContent }; })()''')
-    pg.screenshot(path=f'{OUT}/07_link_card.png')
-    ev('window.open = window.__wo'); pg.click('#vocialBack'); real(300)
-    res['checks']['back_hides_card'] = ev('document.getElementById("vocialCard").style.display')
+    ev('window.__opens = 0; window.__wo = window.open; window.open = function () { window.__opens++; return null; }; 0')
+    pages_before = len(ctx.pages); plays_before = st()['plays']
+    pg.mouse.click(cp['x'], cp['y']); real(1500)
+    vr = ev('''(() => { const c = RV.camera.getWorldPosition(new THREE.Vector3()), t = RV.voiceNote.card.getWorldPosition(new THREE.Vector3()); const d = t.sub(c).normalize();
+        const r = RV.media.selectStart({}, c, d); return { handled: !!r }; })()'''); real(500)
+    s2 = st()
+    res['checks']['card_is_inert'] = {'window_open_calls': ev('window.__opens'), 'new_pages': len(ctx.pages) - pages_before, 'overlay': ev('!!document.getElementById("vocialCard")'),
+        'plays_unchanged': s2['plays'] == plays_before, 'live': s2['live'], 'vr_select': vr, 'xr_session': ev('!!(RV.renderer.xr.getSession && RV.renderer.xr.getSession())'),
+        'ok': ev('window.__opens') == 0 and len(ctx.pages) == pages_before and not ev('!!document.getElementById("vocialCard")') and s2['plays'] == plays_before and not s2['live']}
+    ev('window.open = window.__wo')
     # light switch dims bezel + card
     before = ev('(() => { const m = RV.voiceNote._debug.mats; return [m.bezelM.emissive.getHex(), m.cardM.emissive.getHex(), m.labelM.emissive.getHex()]; })()')
     ok = False

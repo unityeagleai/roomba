@@ -5,9 +5,9 @@
 // to carry on; at the end it settles back to the still. Never autoplays; preload is metadata only.
 // Starting it pauses an episode, lifts the record needle, stops the keycard poster and pauses the origin frame; any of
 // those starting afterwards pauses it.
-// Under it, taped to the wall: an index card 'WANNA HEAR ME? TALK TO ME ON VOCIAL vocial.app/@unityeagle'. Click the
-// card and her Vocial page opens in a new tab. In VR the headset leaves VR first (a web page can't open inside VR) and a
-// card on the screen keeps the link, in case the browser blocked the new tab.
+// Under it, taped to the wall: an index card 'WANNA HEAR ME? TALK TO ME ON VOCIAL vocial.app/@unityeagle'. It's a plain
+// note to read (the link in the video is too small to read from across the room), not a button: clicking it does nothing,
+// so nobody gets bumped out of VR by opening a web page.
 // The screen bezel, label and card have grey self-light, so the light switch dims them like the photos; the picture
 // itself is a lit screen (like the origin frame) and stays readable in the dark.
 // Hooks itself into RV.media (click / selectStart / hoverT / tick / playing) like originframe.js, so app.js needs no changes.
@@ -84,7 +84,6 @@ function drawCard() {
   x.fillStyle = '#5a1f8a'; x.font = '30px ' + PIX; x.fillText('TALK TO ME ON VOCIAL', W / 2, 192);
   x.fillStyle = '#1d4fd8'; x.font = '38px ' + PIX; x.fillText(LINK_TXT, W / 2, 320);
   const tw = x.measureText(LINK_TXT).width; x.fillRect(W / 2 - tw / 2, 348, tw, 4);
-  x.fillStyle = '#c0306a'; x.font = '26px ' + PIX; x.fillText('\u25b6 CLICK ME', W / 2, 446);
   x.fillStyle = '#100820'; x.font = '30px ' + PIX; x.textAlign = 'right'; x.fillText('- UNITY', W - 48, 548);
   cardT.needsUpdate = true;
 }
@@ -97,9 +96,6 @@ const shM = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, op
 const sh = new THREE.Mesh(new THREE.PlaneGeometry(CARD.w + 0.012, CARD.h + 0.012), shM); sh.position.set(0.004, -0.005, -0.0015); card.add(sh);
 const tapeM = new THREE.MeshPhongMaterial({ color: 0xece6c8, emissive: 0x202020, transparent: true, opacity: 0.8, depthWrite: false });
 for (const [sx, r] of [[-1, 0.4], [1, -0.35]]) { const tp = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.024), tapeM); tp.position.set(sx * (CARD.w / 2 - 0.015), CARD.h / 2 - 0.006, 0.0015); tp.rotation.z = r; tp.renderOrder = 3; card.add(tp); }
-// generous invisible click target for the card (easy to hit with the Quest ray)
-const cardHit = new THREE.Mesh(new THREE.BoxGeometry(CARD.w + 0.04, CARD.h + 0.04, 0.03), new THREE.MeshBasicMaterial({ visible: false }));
-cardHit.position.set(lz(CARD.z), CARD.y, 0.016); cardHit.name = 'vocial link card hit'; root.add(cardHit);
 
 function redraw() { drawLabel(); drawCard(); }
 redraw();
@@ -126,7 +122,7 @@ function wireAudio() {
 }
 
 // rest (still) -> starting -> live (video) <-> paused (video frame held) ; ended -> rest
-let live = false, starting = false, paused = false, plays = 0, opens = 0;
+let live = false, starting = false, paused = false, plays = 0;
 function showStill() { imgM.map = stillTex; imgM.color.setHex(stillTex ? 0xffffff : 0x14101c); imgM.needsUpdate = true; playIcon.visible = true; }
 function showVideo() { imgM.map = vtex; imgM.color.setHex(0xffffff); imgM.needsUpdate = true; playIcon.visible = false; }
 video.addEventListener('playing', () => { if (!starting && !live) return; starting = false; live = true; paused = false; showVideo(); });
@@ -168,56 +164,20 @@ function rest(why) {
 }
 function toggle() { if (live || starting) pause('user'); else play(); return true; }
 
-// ---- the Vocial link: a new tab. In VR, leave VR first and keep a card with the link on the screen.
-let overlay = null;
-function showOverlay(opened) {
-  if (!overlay) {
-    overlay = document.createElement('div'); overlay.id = 'vocialCard';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:rgba(6,4,12,.82)';
-    overlay.innerHTML = '<div class="card" style="max-width:520px"><h1>TALK TO UNITY</h1>' +
-      '<p id="vocialMsg"></p>' +
-      '<div class="btns"><a id="vocialGo" href="' + LINK + '" target="_blank" rel="noopener" style="text-decoration:none"><button id="vocialBtn" style="background:#3ff0e0">OPEN ' + LINK_TXT.toUpperCase() + '</button></a>' +
-      '<button id="vocialBack">BACK TO THE ROOM</button></div></div>';
-    document.body.appendChild(overlay);
-    overlay.querySelector('#vocialBack').addEventListener('click', () => { overlay.style.display = 'none'; });
-    overlay.querySelector('#vocialGo').addEventListener('click', () => { api.overlayOpens++; });
-  }
-  overlay.querySelector('#vocialMsg').textContent = opened
-    ? 'Unity\'s Vocial page opened in a new tab: hear Unity\'s voice notes and talk back. If it didn\'t open, tap the button.'
-    : 'Hear Unity\'s voice notes and talk back on Vocial. Tap the button to open it in a new tab.';
-  overlay.style.display = 'flex';
-}
-function openLink(how) {
-  opens++; api.lastOpen = how;
-  if (live || starting) pause('opened vocial');
-  let w = null;
-  try { w = window.open(LINK, '_blank'); if (w) { try { w.opener = null; } catch (e) { } } } catch (e) { w = null; }
-  api.lastOpenOk = !!w;
-  const s = renderer.xr.getSession && renderer.xr.getSession();
-  if (s) { try { s.end().catch(() => { }); } catch (e) { } }
-  if (s || !w) showOverlay(!!w);
-  if (RV.haptic) RV.haptic(0.3, 35);
-  return true;
-}
-
-// ---- picking: the screen (bezel + picture) plays, the card opens the link
+// ---- picking: only the screen (bezel + picture) is clickable; the card is just a note on the wall
 const ray = new THREE.Raycaster(); ray.far = 12;
-const screenTargets = [img, body, label], cardTargets = [cardHit];
+const screenTargets = [img, body, label];
 function pickScreen(o, d) { ray.set(o, d); const h = ray.intersectObjects(screenTargets, false)[0]; return h ? h.distance : null; }
-function pickCard(o, d) { ray.set(o, d); const h = ray.intersectObjects(cardTargets, false)[0]; return h ? h.distance : null; }
-function pick(o, d) { const a = pickScreen(o, d), b = pickCard(o, d); return a == null ? b : b == null ? a : Math.min(a, b); }
+const pick = pickScreen;
 
 const M = RV.media, orig = { click: M.click, selectStart: M.selectStart, hoverT: M.hoverT, tick: M.tick, playing: M.playing };
-// which of mine is hit first, if it is nearer than everything else the media layer knows
+// the screen, if it is hit and nearer than everything else the media layer knows
 function mine(o, d) {
-  const a = pickScreen(o, d), b = pickCard(o, d); if (a == null && b == null) return null;
-  const t = a == null ? b : b == null ? a : Math.min(a, b), m = orig.hoverT(o, d);
-  if (m != null && m < t) return null;
-  return (b != null && (a == null || b <= a)) ? 'card' : 'screen';
+  const t = pickScreen(o, d); if (t == null) return false;
+  const m = orig.hoverT(o, d); return !(m != null && m < t);
 }
-function act(which, how) { return which === 'card' ? openLink(how) : toggle(); }
-M.click = function (o, d) { const w = mine(o, d); if (w) return act(w, 'click'); return orig.click(o, d); };
-M.selectStart = function (c, o, d) { const w = mine(o, d); if (w) return act(w, 'vr'); return orig.selectStart(c, o, d); };
+M.click = function (o, d) { if (mine(o, d)) return toggle(); return orig.click(o, d); };
+M.selectStart = function (c, o, d) { if (mine(o, d)) return toggle(); return orig.selectStart(c, o, d); };
 M.hoverT = function (o, d) { const a = orig.hoverT(o, d), b = pick(o, d); return b != null && (a == null || b < a) ? b : a; };
 M.playing = function () { return orig.playing() || live || starting; };
 M.tick = function (dt, T) {
@@ -226,9 +186,9 @@ M.tick = function (dt, T) {
   ledM.color.setHex(live ? 0x3cff78 : 0x5a3a10);
 };
 
-const api = RV.voiceNote = { root, scr, img, body, card, cardHit, playIcon, video, ready: false, lastStop: null, lastOpen: null, lastOpenOk: null, overlayOpens: 0,
+const api = RV.voiceNote = { root, scr, img, body, card, playIcon, video, ready: false, lastStop: null,
   AT, CARD, IMG_W, IMG_H, OW, OH, LINK, PAN_POS,
-  _debug: { pick, pickScreen, pickCard, toggle, play, pause, rest, openLink, showOverlay, overlay: () => overlay, mats: { bezelM, labelM, cardM },
-    state: () => ({ live, starting, paused, plays, opens, t: video.currentTime, dur: video.duration, videoPaused: video.paused, ended: video.ended, preload: video.preload, autoplay: video.autoplay,
+  _debug: { pick, pickScreen, toggle, play, pause, rest, mats: { bezelM, labelM, cardM },
+    state: () => ({ live, starting, paused, plays, t: video.currentTime, dur: video.duration, videoPaused: video.paused, ended: video.ended, preload: video.preload, autoplay: video.autoplay,
       map: imgM.map === vtex ? 'video' : imgM.map === stillTex ? 'still' : 'none', playIcon: playIcon.visible, audioWired: !!src, lastStop: api.lastStop, w: video.videoWidth, h: video.videoHeight }) } };
 })();
