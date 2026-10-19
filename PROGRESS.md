@@ -73,3 +73,24 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
 - [x] js/gallery.js: left wall (x = -RX) above the headboard, world z -1.11..1.36, y 1.21..2.35; scattered gallery-wall style (Unity: no grid, organic, some overlapping, varied heights/sizes, each in its own frame): walnut / black / gold / white / oak frames, some with cream mats, tilts -2..2.2 deg; overlapping frames hang one layer (2.2 cm) further out on a dark spacer inset 5 cm; soft shadow on the wallpaper per frame. 3 draw calls (frames vertex-coloured, photos atlas, shadows), no lights, no interaction
 - [x] tools/test_gallery.py: 10 photos loaded, aspect kept, on the wall / above headboard / below rail / clear of socials poster + shelf, scattered (10 heights, 9 widths), overlapping pairs on different layers, spacers clear, every photo the first hit from 3 spots, on-screen pixels are the print (not wallpaper), 0 errors; find_coplanar: no hits on the photo wall
 - [ ] NOT seen in a headset yet
+
+## 2026-10-19 (night) — photo wall without board, light switch, Roomba voice
+- Photo wall (js/gallery.js): cork board removed after the Quest test ("massive, takes away from the images"). The ten
+  photos are taped straight onto the wallpaper above the bed, real-life print sizes (14-17.5 cm tall photos, 1.2 cm white
+  borders), tape only on the borders, same order as before (no swaps). tools/test_gallery.py updated (no_cork_board,
+  real_life_print_size, taped_only).
+- Light switch (js/nightlight.js): cream rocker switch on the front wall right of the door (x -0.80, y 1.22), works
+  with the Quest trigger ray and desktop click/tap. Off = ceiling lamp light 0, room fill x0.08, moonlight x0.32, grey
+  readability self-light on prints/posters x0.28, new flush ceiling fitting goes dark, amber locator LED on. Stays on:
+  lava lamp, ceiling stars, the existing fairy lights over the Xanadu poster (poster lit by them at night), Xanadu
+  mirror image + pink neon, Parallel Universe keycard poster, TV, statues. tools/test_lights.py.
+- Roomba voice (js/roomba.js, tools/make_roomba_voice.py -> assets/audio/roomba_voice.mp3/.json): floating bubble
+  retired (showed through the bed); all 152 lines spoken by Piper en_GB-alan-medium + robot filter, checked with
+  faster-whisper (no misheard swear words), plus a synthetic small-room echo. ElevenLabs (robot filter + small room)
+  NOT used: no API key on the VM and the ElevenLabs sign-in wasn't completed; swap the sprite if that becomes possible.
+  Greets once per visit. Punishment: walk over a spot it cleaned in the last
+  25 s while it's within 3 m -> 50% chance, 4 min cooldown: "Where do you think you're going? ..." then the full song
+  'The Roomba Ran Away' (~/the_roomba_ran_away.wav -> assets/audio/the_roomba_ran_away.mp3, 2:49) from its speaker while
+  it dances round your feet; pet it to cancel. Trail check runs every 0.25 s along your path since the last check (a
+  quick step across a cleaned strip counts). tools/test_roomba_voice.py.
+- [ ] Roomba voice NOT heard in a headset yet

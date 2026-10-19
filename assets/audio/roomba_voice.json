@@ -1,0 +1,768 @@
+{
+"v": 1,
+"sr": 22050,
+"lines": {
+"!!": [
+0.0,
+0.428
+],
+"...": [
+0.678,
+0.5
+],
+"...FINE.": [
+1.428,
+0.579
+],
+"...I WON.": [
+2.257,
+0.632
+],
+"...OK. HI.": [
+3.139,
+1.255
+],
+"?": [
+4.643,
+0.434
+],
+"AAAA": [
+5.327,
+0.511
+],
+"ADOPTION PAPERS: EATEN": [
+6.088,
+2.0
+],
+"AGAIN!": [
+8.338,
+0.627
+],
+"AGREED.": [
+9.215,
+0.763
+],
+"ALL HAIL ME": [
+10.227,
+0.956
+],
+"APOLOGY ACCEPTED. PROBABLY.": [
+11.433,
+2.134
+],
+"BATTERY LOW. GOING HOME": [
+13.817,
+2.035
+],
+"BED LEG: 1 ME: 0": [
+16.102,
+2.316
+],
+"BEEP BOOP": [
+18.668,
+0.834
+],
+"BEEP.": [
+19.752,
+0.508
+],
+"BONK": [
+20.511,
+1.241
+],
+"BOOP.": [
+22.002,
+0.472
+],
+"BORED.": [
+22.724,
+0.551
+],
+"BRIBE ACCEPTED": [
+23.525,
+1.207
+],
+"BUG 204: NOCLIP": [
+24.982,
+2.195
+],
+"CABLE TOO SPICY": [
+27.427,
+1.348
+],
+"CARTRIDGE ACQUIRED": [
+29.025,
+1.221
+],
+"COMING": [
+30.495,
+0.532
+],
+"CRUMBS DETECTED": [
+31.278,
+1.161
+],
+"CRUNCHY": [
+32.689,
+0.641
+],
+"DELICIOUS DATA": [
+33.58,
+1.168
+],
+"DON'T TOUCH ME": [
+34.998,
+0.982
+],
+"DREAMING OF CRUMBS": [
+36.23,
+1.311
+],
+"EPISODE 7: EATEN": [
+37.791,
+2.205
+],
+"EXCUSE ME. FOOT.": [
+40.246,
+1.905
+],
+"FASCINATING. MORE CRUMBS?": [
+42.402,
+1.849
+],
+"FEATURE.": [
+44.501,
+0.676
+],
+"FIGHT ME, BEANBAG": [
+45.427,
+1.343
+],
+"FIGHT ME, BED": [
+47.02,
+1.121
+],
+"FIGHT ME, CART SHELF": [
+48.391,
+1.584
+],
+"FIGHT ME, CUSHION": [
+50.225,
+1.259
+],
+"FIGHT ME, DRESSER": [
+51.734,
+1.302
+],
+"FIGHT ME, LAUNDRY": [
+53.286,
+1.447
+],
+"FIGHT ME, NIGHTSTAND": [
+54.982,
+1.577
+],
+"FIGHT ME, RECORD CABINET": [
+56.81,
+1.908
+],
+"FIGHT ME, SHELF": [
+58.968,
+1.233
+],
+"FINDERS KEEPERS": [
+60.451,
+1.223
+],
+"FINE. HELLO.": [
+61.924,
+1.306
+],
+"FINE. KEEP IT.": [
+63.48,
+1.369
+],
+"FIVE MORE MINUTES": [
+65.099,
+1.328
+],
+"FOOT IN THE WAY": [
+66.677,
+0.971
+],
+"FOR LATER": [
+67.897,
+0.867
+],
+"GOING AROUND YOU": [
+69.014,
+1.331
+],
+"HEY!": [
+70.596,
+0.451
+],
+"HEY. THAT WAS MINE.": [
+71.297,
+1.609
+],
+"HI UNITY": [
+73.156,
+1.03
+],
+"HI UNITY. I CLEANED. YOU'RE WELCOME.": [
+74.436,
+2.801
+],
+"HIDDEN.": [
+77.487,
+0.49
+],
+"HMPH.": [
+78.227,
+1.235
+],
+"I ALLOW THIS": [
+79.712,
+1.156
+],
+"I AM NOT TALKING TO YOU": [
+81.118,
+1.481
+],
+"I ATE A CABLE": [
+82.849,
+1.178
+],
+"I DENY EVERYTHING": [
+84.277,
+1.236
+],
+"I HAVE FLOORS TO DO": [
+85.764,
+1.484
+],
+"I UNDERSTOOD THAT": [
+87.498,
+1.341
+],
+"I WAS HERE FIRST": [
+89.089,
+1.274
+],
+"I'M SHY TODAY": [
+90.613,
+1.068
+],
+"I'M TELLING MILES": [
+91.93,
+1.346
+],
+"INDOOR VOICE PLEASE": [
+93.526,
+1.328
+],
+"INSPECTING...": [
+95.104,
+0.89
+],
+"IS THAT AN EPISODE": [
+96.244,
+1.46
+],
+"IT GOT AWAY": [
+97.953,
+0.922
+],
+"LA LA LA": [
+99.126,
+0.783
+],
+"MILES HAS IT ON FILE": [
+100.159,
+1.577
+],
+"MINE": [
+101.986,
+1.582
+],
+"MORE": [
+103.818,
+0.503
+],
+"MOUTH FULL": [
+104.572,
+0.894
+],
+"MY LAWYER IS ALSO ME": [
+105.716,
+1.608
+],
+"MY LAWYER WILL HEAR ABOUT THIS": [
+107.574,
+1.871
+],
+"NEW HUMAN DETECTED": [
+109.695,
+1.471
+],
+"NO PUSH TO MAIN": [
+111.417,
+1.163
+],
+"NOBODY IS USING THIS": [
+112.829,
+1.663
+],
+"NOBODY SAW THAT": [
+114.742,
+1.212
+],
+"NOM": [
+116.204,
+1.069
+],
+"NOM. YOUR NOTE.": [
+117.523,
+1.451
+],
+"NOM? (SHOELACE)": [
+119.224,
+1.489
+],
+"NOT TALKING TO YOU": [
+120.964,
+1.229
+],
+"OH. FEET.": [
+122.443,
+1.775
+],
+"OH. IT'S YOU.": [
+124.468,
+1.492
+],
+"OH. YOU'RE BACK. ALL HAIL ME.": [
+126.211,
+3.199
+],
+"OK BYE": [
+129.66,
+1.149
+],
+"OK I MISSED YOU": [
+131.059,
+1.745
+],
+"OK OK. PUNISHMENT CANCELLED.": [
+133.054,
+2.609
+],
+"ON MY WAY": [
+135.913,
+0.934
+],
+"OOH. SHINY.": [
+137.097,
+1.712
+],
+"OOPS. SORRY. FEET.": [
+139.058,
+1.721
+],
+"OW. BED.": [
+141.029,
+1.372
+],
+"PERSONAL SPACE": [
+142.65,
+1.241
+],
+"PUNISHMENT OVER. YOU MAY GO.": [
+144.142,
+2.131
+],
+"PURR.EXE": [
+146.523,
+1.354
+],
+"RUDE.": [
+148.127,
+0.843
+],
+"SAFE HERE": [
+149.22,
+0.768
+],
+"SCANNING FOR CABLES...": [
+150.238,
+1.364
+],
+"SNACK ALERT": [
+151.852,
+1.16
+],
+"SNIFF SNIFF": [
+153.262,
+0.909
+],
+"SOCK ACQUIRED": [
+154.421,
+1.959
+],
+"SORRY. YOUR FOOT.": [
+156.63,
+1.493
+],
+"STILL MAD": [
+158.372,
+1.219
+],
+"STILL NOT TALKING TO YOU": [
+159.841,
+1.51
+],
+"TAG. YOU'RE IT.": [
+161.601,
+1.233
+],
+"TALK TO MY LAWYER": [
+163.084,
+1.164
+],
+"THAT WAS A FEATURE": [
+164.498,
+1.275
+],
+"THAT'S WHAT THE PAPERS SAID": [
+166.022,
+1.569
+],
+"THE BATON WAS TASTIER": [
+167.841,
+1.451
+],
+"THE BEANBAG STARTED IT": [
+169.542,
+1.517
+],
+"THE BED STARTED IT": [
+171.309,
+1.306
+],
+"THE CART SHELF STARTED IT": [
+172.866,
+1.759
+],
+"THE CUSHION STARTED IT": [
+174.875,
+1.476
+],
+"THE DRESSER STARTED IT": [
+176.601,
+1.402
+],
+"THE LAUNDRY STARTED IT": [
+178.254,
+1.466
+],
+"THE NIGHTSTAND STARTED IT": [
+179.97,
+1.625
+],
+"THE OTHER ONE IS NEXT": [
+181.846,
+1.499
+],
+"THE RECORD CABINET STARTED IT": [
+183.594,
+1.979
+],
+"THE SHELF STARTED IT": [
+185.823,
+1.381
+],
+"THIEF": [
+187.454,
+0.802
+],
+"THIS IS MINE NOW": [
+188.506,
+1.155
+],
+"THIS IS MY SONG": [
+189.912,
+1.085
+],
+"TOO CLOSE": [
+191.247,
+0.936
+],
+"UNPATCHED. UNBOTHERED.": [
+192.432,
+1.753
+],
+"WALL. AGAIN.": [
+194.435,
+1.276
+],
+"WALL: 1 ME: 0": [
+195.96,
+2.111
+],
+"WELCOME HOME, UNITY": [
+198.321,
+1.663
+],
+"WHAT ARE THOSE. FEET?": [
+200.234,
+2.016
+],
+"WHEEE": [
+202.5,
+1.124
+],
+"WHERE DO YOU THINK YOU'RE GOING? I JUST CLEANED THAT SPOT. NOW I NEED TO PUNISH YOU.": [
+203.874,
+5.007
+],
+"WHO PUT A BEANBAG HERE": [
+209.13,
+1.491
+],
+"WHO PUT A BED HERE": [
+210.872,
+1.186
+],
+"WHO PUT A CART SHELF HERE": [
+212.307,
+1.624
+],
+"WHO PUT A CUSHION HERE": [
+214.182,
+1.404
+],
+"WHO PUT A DRESSER HERE": [
+215.835,
+1.366
+],
+"WHO PUT A LAUNDRY HERE": [
+217.451,
+1.411
+],
+"WHO PUT A NIGHTSTAND HERE": [
+219.113,
+1.567
+],
+"WHO PUT A RECORD CABINET HERE": [
+220.93,
+1.897
+],
+"WHO PUT A SHELF HERE": [
+223.077,
+1.33
+],
+"WHO PUT THAT THERE": [
+224.656,
+1.253
+],
+"WHO SAID THAT": [
+226.16,
+1.061
+],
+"WRITE THAT DOWN": [
+227.471,
+1.121
+],
+"YES. ALSO NO.": [
+228.842,
+1.716
+],
+"YES. THERE.": [
+230.808,
+1.227
+],
+"YES?": [
+232.285,
+0.637
+],
+"YOU CALLED?": [
+233.172,
+0.692
+],
+"YOU MAY APPROACH": [
+234.114,
+1.211
+],
+"YOUR FOOT IS IN MY LANE": [
+235.575,
+1.376
+],
+"ZOOMIES": [
+237.201,
+1.161
+],
+"ZZZ": [
+238.612,
+2.438
+],
+"ZZZ...CABLES...": [
+241.3,
+1.969
+]
+},
+"spoken": {
+"!!": "Whoa!",
+"...": "Hmmm.",
+"...FINE.": "Fine.",
+"...I WON.": "I won.",
+"...OK. HI.": "Okay. Hi.",
+"?": "Huh?",
+"AAAA": "Aaaaah!",
+"ADOPTION PAPERS: EATEN": "Adoption papers. Eaten.",
+"AGAIN!": "Again!",
+"AGREED.": "Agreed.",
+"ALL HAIL ME": "All hail me.",
+"APOLOGY ACCEPTED. PROBABLY.": "Apology accepted. Probably.",
+"BATTERY LOW. GOING HOME": "Battery low. Going home.",
+"BED LEG: 1 ME: 0": "Bed leg, one. Me, zero.",
+"BEEP BOOP": "Beep boop.",
+"BEEP.": "Beep.",
+"BONK": "Bonk. Ouch.",
+"BOOP.": "Boop.",
+"BORED.": "Bored.",
+"BRIBE ACCEPTED": "Bribe accepted.",
+"BUG 204: NOCLIP": "Bug two oh four. No clip.",
+"CABLE TOO SPICY": "Cable too spicy.",
+"CARTRIDGE ACQUIRED": "Cartridge acquired.",
+"COMING": "Coming.",
+"CRUMBS DETECTED": "Crumbs detected.",
+"CRUNCHY": "Crunchy.",
+"DELICIOUS DATA": "Delicious data.",
+"DON'T TOUCH ME": "Don't touch me.",
+"DREAMING OF CRUMBS": "Dreaming of crumbs.",
+"EPISODE 7: EATEN": "Episode seven. Has been eaten.",
+"EXCUSE ME. FOOT.": "Excuse me. Your foot.",
+"FASCINATING. MORE CRUMBS?": "Fascinating. More crumbs?",
+"FEATURE.": "Feature.",
+"FIGHT ME, BEANBAG": "Fight me, beanbag.",
+"FIGHT ME, BED": "Fight me, bed.",
+"FIGHT ME, CART SHELF": "Fight me, cart shelf.",
+"FIGHT ME, CUSHION": "Fight me, cushion.",
+"FIGHT ME, DRESSER": "Fight me, dresser.",
+"FIGHT ME, LAUNDRY": "Fight me, laundry.",
+"FIGHT ME, NIGHTSTAND": "Fight me, nightstand.",
+"FIGHT ME, RECORD CABINET": "Fight me, record cabinet.",
+"FIGHT ME, SHELF": "Fight me, shelf.",
+"FINDERS KEEPERS": "Finders keepers.",
+"FINE. HELLO.": "Fine. Hello.",
+"FINE. KEEP IT.": "Fine. Keep it.",
+"FIVE MORE MINUTES": "Five more minutes.",
+"FOOT IN THE WAY": "Foot in the way!",
+"FOR LATER": "For later.",
+"GOING AROUND YOU": "Going around you now.",
+"HEY!": "Hey!",
+"HEY. THAT WAS MINE.": "Hey. That was mine.",
+"HI UNITY": "Hi Unity.",
+"HI UNITY. I CLEANED. YOU'RE WELCOME.": "Hi Unity. I cleaned. You're welcome.",
+"HIDDEN.": "Hidden.",
+"HMPH.": "Hmph.",
+"I ALLOW THIS": "I allow this.",
+"I AM NOT TALKING TO YOU": "I am not talking to you.",
+"I ATE A CABLE": "I ate a cable.",
+"I DENY EVERYTHING": "I deny everything.",
+"I HAVE FLOORS TO DO": "I have floors to do.",
+"I UNDERSTOOD THAT": "I understood that.",
+"I WAS HERE FIRST": "I was here first.",
+"I'M SHY TODAY": "I'm shy today.",
+"I'M TELLING MILES": "I'm telling Miles.",
+"INDOOR VOICE PLEASE": "Indoor voice please.",
+"INSPECTING...": "Inspecting.",
+"IS THAT AN EPISODE": "Is that an episode.",
+"IT GOT AWAY": "It got away.",
+"LA LA LA": "La la la la.",
+"MILES HAS IT ON FILE": "Miles has it on file.",
+"MINE": "Mine. All mine.",
+"MORE": "More.",
+"MOUTH FULL": "Mouth full.",
+"MY LAWYER IS ALSO ME": "My lawyer is also me.",
+"MY LAWYER WILL HEAR ABOUT THIS": "My lawyer will hear about this.",
+"NEW HUMAN DETECTED": "New human detected.",
+"NO PUSH TO MAIN": "No push to main.",
+"NOBODY IS USING THIS": "Nobody is using this.",
+"NOBODY SAW THAT": "Nobody saw that.",
+"NOM": "Nom nom nom.",
+"NOM. YOUR NOTE.": "Nom. Your note.",
+"NOM? (SHOELACE)": "Nom? A shoelace?",
+"NOT TALKING TO YOU": "Not talking to you.",
+"OH. FEET.": "Oh. Those are feet.",
+"OH. IT'S YOU.": "Oh. It's you.",
+"OH. YOU'RE BACK. ALL HAIL ME.": "Oh! You are back! All hail me, the king.",
+"OK BYE": "Okay, bye.",
+"OK I MISSED YOU": "Okay. I missed you.",
+"OK OK. PUNISHMENT CANCELLED.": "Ok ok. Punishment cancelled.",
+"ON MY WAY": "On my way.",
+"OOH. SHINY.": "Oooh. Something shiny.",
+"OOPS. SORRY. FEET.": "Oops! Sorry, feet!",
+"OW. BED.": "Ow! The bed.",
+"PERSONAL SPACE": "Personal space.",
+"PUNISHMENT OVER. YOU MAY GO.": "Punishment over. You may go.",
+"PURR.EXE": "Purr dot exe.",
+"RUDE.": "How rude.",
+"SAFE HERE": "Safe here.",
+"SCANNING FOR CABLES...": "Scanning for cables.",
+"SNACK ALERT": "Snack alert.",
+"SNIFF SNIFF": "Sniff sniff.",
+"SOCK ACQUIRED": "One stinky sock, acquired.",
+"SORRY. YOUR FOOT.": "Sorry. Your foot.",
+"STILL MAD": "I am still mad.",
+"STILL NOT TALKING TO YOU": "Still not talking to you.",
+"TAG. YOU'RE IT.": "Tag. You're it.",
+"TALK TO MY LAWYER": "Talk to my lawyer.",
+"THAT WAS A FEATURE": "That was a feature.",
+"THAT'S WHAT THE PAPERS SAID": "That's what the papers said.",
+"THE BATON WAS TASTIER": "The baton was tastier.",
+"THE BEANBAG STARTED IT": "The beanbag started it.",
+"THE BED STARTED IT": "The bed started it.",
+"THE CART SHELF STARTED IT": "The cart shelf started it.",
+"THE CUSHION STARTED IT": "The cushion started it.",
+"THE DRESSER STARTED IT": "The dresser started it.",
+"THE LAUNDRY STARTED IT": "The laundry started it.",
+"THE NIGHTSTAND STARTED IT": "The nightstand started it.",
+"THE OTHER ONE IS NEXT": "The other one is next.",
+"THE RECORD CABINET STARTED IT": "The record cabinet started it.",
+"THE SHELF STARTED IT": "The shelf started it.",
+"THIEF": "You thief!",
+"THIS IS MINE NOW": "This is mine now.",
+"THIS IS MY SONG": "This is my song.",
+"TOO CLOSE": "Too close.",
+"UNPATCHED. UNBOTHERED.": "Unpatched. Unbothered.",
+"WALL. AGAIN.": "Wall. Again.",
+"WALL: 1 ME: 0": "Wall, one. Me, zero.",
+"WELCOME HOME, UNITY": "Welcome home, Unity.",
+"WHAT ARE THOSE. FEET?": "What are those? Are those feet?",
+"WHEEE": "Wheee! Yay!",
+"WHERE DO YOU THINK YOU'RE GOING? I JUST CLEANED THAT SPOT. NOW I NEED TO PUNISH YOU.": "Where do you think you're going? I just cleaned that spot. Now I need to punish you.",
+"WHO PUT A BEANBAG HERE": "Who put a beanbag here.",
+"WHO PUT A BED HERE": "Who put a bed here.",
+"WHO PUT A CART SHELF HERE": "Who put a cart shelf here.",
+"WHO PUT A CUSHION HERE": "Who put a cushion here.",
+"WHO PUT A DRESSER HERE": "Who put a dresser here.",
+"WHO PUT A LAUNDRY HERE": "Who put a laundry here.",
+"WHO PUT A NIGHTSTAND HERE": "Who put a nightstand here.",
+"WHO PUT A RECORD CABINET HERE": "Who put a record cabinet here.",
+"WHO PUT A SHELF HERE": "Who put a shelf here.",
+"WHO PUT THAT THERE": "Who put that there.",
+"WHO SAID THAT": "Who said that.",
+"WRITE THAT DOWN": "Write that down.",
+"YES. ALSO NO.": "Yes. Also no.",
+"YES. THERE.": "Yes. There.",
+"YES?": "Yes?",
+"YOU CALLED?": "You called?",
+"YOU MAY APPROACH": "You may approach.",
+"YOUR FOOT IS IN MY LANE": "Your foot is in my lane.",
+"ZOOMIES": "Zoom zoom zoom!",
+"ZZZ": "Zzzz. Zzzz.",
+"ZZZ...CABLES...": "Zzzz. Cables."
+}
+}

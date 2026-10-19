@@ -57,7 +57,8 @@ const glow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), glowMat); glow.rotati
 // speech bubble
 const bubC = canvas(512, 176), bubX = bubC.getContext('2d'), bubT = new THREE.CanvasTexture(bubC); bubT.encoding = THREE.sRGBEncoding;
 const bubble = new THREE.Sprite(new THREE.SpriteMaterial({ map: bubT, transparent: true, depthTest: false, opacity: 0 }));
-bubble.center.set(0.5, 0); bubble.scale.set(0.5, 0.172, 1); bubble.renderOrder = 10; scene.add(bubble);
+bubble.center.set(0.5, 0); bubble.scale.set(0.5, 0.172, 1); bubble.renderOrder = 10; bubble.visible = false; scene.add(bubble);
+// (the floating bubble is retired: it showed through the bed when the Roomba was underneath. It speaks its lines now.)
 
 // ============================================================ items it eats
 const items = R.items = [];
@@ -93,7 +94,30 @@ R.initAudio = function (ctx) {
   A.motor = ctx.createOscillator(); A.motor.type = 'sawtooth'; A.motor.frequency.value = 70; const mf = ctx.createBiquadFilter(); mf.type = 'lowpass'; mf.frequency.value = 320; A.motorG = ctx.createGain(); A.motorG.gain.value = 0; A.motor.connect(mf); mf.connect(A.motorG); A.motorG.connect(A.pan); A.motor.start();
   const ns = ctx.createBufferSource(); ns.buffer = nb; ns.loop = true; const bf = ctx.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 1700; bf.Q.value = 0.8; A.brushG = ctx.createGain(); A.brushG.gain.value = 0; ns.connect(bf); bf.connect(A.brushG); A.brushG.connect(A.pan); ns.start();
   fetch('assets/audio/roomba_theme_chip.mp3').then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(buf => { A.theme = buf; }).catch(() => {});
+  // its robot voice: one sprite of every line it says (tools/make_roomba_voice.py) -> {TEXT: [start, dur]}
+  fetch('assets/audio/roomba_voice.json').then(r => r.json()).then(j => { VOX.map = j.lines; return fetch('assets/audio/roomba_voice.mp3'); })
+    .then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(buf => { VOX.buf = buf; VOX.readyAt = -1; R.voiceReady = true; }).catch(e => console.warn('roomba voice', e));
+  // the full song 'The Roomba Ran Away' (Unity's own track) for the playful punishment: fetched on first use only
 };
+const VOX = R.vox = { map: null, buf: null, src: null, until: 0, readyAt: null, greeted: false, spoken: [] };
+function voiceSeg(text) {
+  const m = VOX.map; if (!m) return null; if (m[text]) return m[text];
+  const k = text.toUpperCase(); if (m[k]) return m[k];
+  // obstacle lines for something it has no clip of: say the general version
+  return null;
+}
+function speak(text, force) {
+  if (!A.ctx || !VOX.buf) return false; const seg = voiceSeg(text); if (!seg) return false;
+  if (VOX.src) { if (!force && now < VOX.until) return false; try { VOX.src.stop(); } catch (e) { } VOX.src = null; }
+  const c = A.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = VOX.buf; g.gain.value = VOX.gain;
+  s.connect(g); g.connect(A.pan); s.start(c.currentTime + 0.02, seg[0], seg[1]); VOX.src = s; VOX.until = now + seg[1] + 0.1;
+  s.onended = () => { if (VOX.src === s) VOX.src = null; };
+  A.quietUntil = Math.max(A.quietUntil, c.currentTime + seg[1] + 0.35);   // so its mic ears don't hear itself
+  VOX.spoken.push({ t: +now.toFixed(2), text }); if (VOX.spoken.length > 200) VOX.spoken.splice(0, 100); R.lastSpoken = text;
+  return true;
+}
+VOX.gain = 1.15;
+R.speak = speak;
 function tone(f0, f1, dur, type, vol, delay) {
   const c = A.ctx; if (!c) return; const t = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
   o.type = type || 'square'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
@@ -132,7 +156,7 @@ function snd(n, k) {
 }
 R.snd = snd;
 let themeSrc = null;
-function playTheme() { if (!A.theme || themeSrc) return false; const s = A.ctx.createBufferSource(); s.buffer = A.theme; const g = A.ctx.createGain(); g.gain.value = 0.5; s.connect(g); g.connect(A.pan); s.start(); themeSrc = s; s.onended = () => { themeSrc = null; }; A.quietUntil = A.ctx.currentTime + s.buffer.duration + 0.3; return true; }
+function playTheme() { if (!A.theme || themeSrc || (R.song && R.song.playing())) return false; const s = A.ctx.createBufferSource(); s.buffer = A.theme; const g = A.ctx.createGain(); g.gain.value = 0.5; s.connect(g); g.connect(A.pan); s.start(); themeSrc = s; s.onended = () => { themeSrc = null; }; A.quietUntil = A.ctx.currentTime + s.buffer.duration + 0.3; return true; }
 
 // ============================================================ the creature
 const B = R.b = { x: RV.dock.x, z: RV.dock.z, h: 0, v: 0, w: 0, tv: 0, tw: 0, ghost: false };
@@ -148,16 +172,15 @@ function setFace(e, tmpDur) { if (tmpDur) { look.tmpExpr = e; look.exprUntil = n
 // speech bubble
 let bubbleUntil = 0, lastLine = '';
 function say(lines, force) {
-  const text = Array.isArray(lines) ? pick(lines.filter(l => l !== lastLine).length ? lines.filter(l => l !== lastLine) : lines) : lines;
-  if (!force && now < bubbleUntil - 1.2) return; lastLine = text;
-  const x = bubX, W = 512, H = 176; x.clearRect(0, 0, W, H);
-  x.font = '24px ' + PIX; const words = text.split(' '), rows = []; let cur = '';
-  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > 440 && cur) { rows.push(cur); cur = w; } else cur = t; } rows.push(cur);
-  const bw = Math.min(490, Math.max(...rows.map(r => x.measureText(r).width)) + 44), bh = rows.length * 34 + 30, bx = (W - bw) / 2, by = H - bh - 26;
-  x.fillStyle = '#100820'; rr(x, bx - 4, by - 4, bw + 8, bh + 8, 14); x.fillStyle = '#fffbea'; rr(x, bx, by, bw, bh, 11);
-  x.fillStyle = '#100820'; x.beginPath(); x.moveTo(W / 2 - 16, by + bh + 2); x.lineTo(W / 2, H - 2); x.lineTo(W / 2 + 16, by + bh + 2); x.fill(); x.fillStyle = '#fffbea'; x.beginPath(); x.moveTo(W / 2 - 10, by + bh - 2); x.lineTo(W / 2, H - 10); x.lineTo(W / 2 + 10, by + bh - 2); x.fill();
-  x.fillStyle = '#100820'; x.textAlign = 'center'; x.textBaseline = 'middle'; rows.forEach((r, i) => x.fillText(r, W / 2, by + 17 + 17 + i * 34 - (rows.length > 1 ? 0 : 2)));
-  bubT.needsUpdate = true; bubbleUntil = now + 2.2 + text.length * 0.045; R.lastSaid = text; log.push({ t: +now.toFixed(2), say: text });
+  let pool = Array.isArray(lines) ? lines : [lines];
+  // with the voice on, prefer lines it can actually say out loud
+  if (VOX.map && pool.length > 1) { const v = pool.filter(l => voiceSeg(l)); if (v.length) pool = v; }
+  const text = pool.length > 1 ? pick(pool.filter(l => l !== lastLine).length ? pool.filter(l => l !== lastLine) : pool) : pool[0];
+  if (!force && (now < bubbleUntil - 1.2 || now < VOX.until)) return; lastLine = text;
+  const spoke = speak(text, force);
+  // no clip (or audio not started yet): a few robot chirps instead of words
+  if (!spoke && A.ctx && force !== 'silent') snd('talk', Math.min(7, 2 + (text.length / 6 | 0)));
+  bubbleUntil = now + (spoke ? Math.max(1.6, VOX.until - now + 0.6) : 2.2 + text.length * 0.045); R.lastSaid = text; log.push({ t: +now.toFixed(2), say: text, voiced: spoke });
 }
 function rr(x, X, Y, w, h, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.fill(); }
 
@@ -388,7 +411,7 @@ function onBump(o, sp) {
 function onFoot(sp) {
   if (S[state].onFoot && S[state].onFoot(sp, sd)) return;
   if (state === 'wander' || state === 'idle') { boopFoot(['OH. FEET.', 'SORRY. YOUR FOOT.']); return go('notice'); }
-  if (now - (R._lastFoot || 0) > 1.2) { R._lastFoot = now; boopFoot(rand() < 0.3 ? ['BOOP.', 'SORRY. YOUR FOOT.', 'EXCUSE ME. FOOT.'] : null); }
+  if (now - (R._lastFoot || 0) > 1.2) { R._lastFoot = now; boopFoot(rand() < 0.6 ? ['BOOP.', 'SORRY. YOUR FOOT.', 'EXCUSE ME. FOOT.', 'OOPS. SORRY. FEET.'] : null); }
   // anything with somewhere to be goes around your feet instead of waiting
   if (['eat', 'home', 'sulk', 'keepAway', 'undock'].includes(state)) push('bump', { o: { name: 'foot', foot: true }, sp: sp * 0.3 });
 }
@@ -418,7 +441,76 @@ function onItem(it) {
   if (['eat', 'startled', 'noclip', 'dock', 'home', 'bump', 'pet'].includes(state) || D > 4.5) return;
   if (mood.hunger > 0.15 || rand() < 0.8) go('eat', { it });
 }
+// ============================================================ greeting + the playful punishment
+const GREET = ['WELCOME HOME, UNITY', 'HI UNITY. I CLEANED. YOU\'RE WELCOME.', 'OH. YOU\'RE BACK. ALL HAIL ME.'];
+const PUNISH_LINES = ['WHERE DO YOU THINK YOU\'RE GOING? I JUST CLEANED THAT SPOT. NOW I NEED TO PUNISH YOU.', 'PUNISHMENT OVER. YOU MAY GO.', 'OK OK. PUNISHMENT CANCELLED.'];
+// greet once per visit, a moment after you come in (flat or VR) and the voice has loaded
+function greetTick() {
+  if (VOX.greeted || !VOX.buf || !A.ctx || !P.ok) return;
+  if (VOX.readyAt < 0) VOX.readyAt = now; if (now - VOX.readyAt < 1.4) return;
+  VOX.greeted = true; setFace('happy', 2.5); look.hop = Math.max(look.hop, 0.02); snd('chirp');
+  say(GREET[VOX.visits++ % GREET.length], true); log.push({ t: +now.toFixed(2), greet: R.lastSaid });
+}
+VOX.visits = 0;
+R.greet = () => { VOX.greeted = false; VOX.readyAt = -1; };   // also called when a VR session starts
+// cleaned trail: where it actually drove (cleaning) recently. Walk over a fresh bit of it and it may come after you.
+const trail = []; let trailT = 0, lastPunish = -999, punishCheck = 0;
+function trailTick(dt) {
+  trailT += dt; if (trailT > 0.25 && Math.abs(B.v) > 0.05) { trailT = 0; trail.push({ x: B.x, z: B.z, t: now }); }
+  while (trail.length && now - trail[0].t > 25) trail.shift();
+}
+const PUNISHABLE = ['wander', 'idle', 'notice', 'follow', 'circle', 'keepAway'];
+function punishTick(dt) {
+  // your path since the last check (so a quick step across a cleaned strip still counts)
+  const px0 = PD.lx == null ? P.x : PD.lx, pz0 = PD.lz == null ? P.z : PD.lz;
+  punishCheck += dt; if (punishCheck < 0.25) return; punishCheck = 0; PD.checks++; PD.lx = P.x; PD.lz = P.z;
+  if (Math.hypot(P.x - px0, P.z - pz0) > 1.2) return;   // a teleport / recentre, not a step
+  if (!P.ok || !VOX.buf || !VOX.greeted || now - lastPunish < 240 || (now < 45 && !PD.sure) || themeSrc || songSrc || !PUNISHABLE.includes(state)) return;
+  if (RV.media && RV.media.playing && RV.media.playing()) return;
+  if (P.speed < 0.35 || dist() > 3 || dist() < 0.35) { PD.miss = 'walk'; return; }
+  PD.miss = 'trail';
+  const hitTrail = trail.some(p => now - p.t > 1.5 && segDist(p.x, p.z, px0, pz0, P.x, P.z) < 0.32);
+  if (hitTrail && (PD.sure || rand() < 0.5)) { PD.why = { x: +P.x.toFixed(2), z: +P.z.toFixed(2), speed: +P.speed.toFixed(2) }; go('punish'); }
+}
+function segDist(x, z, ax, az, bx, bz) {
+  const dx = bx - ax, dz = bz - az, L = dx * dx + dz * dz; let t = L ? ((x - ax) * dx + (z - az) * dz) / L : 0; t = Math.max(0, Math.min(1, t));
+  return Math.hypot(x - ax - t * dx, z - az - t * dz);
+}
+let songBuf = null, songSrc = null, songLoading = null;
+function loadSong() {
+  if (songBuf || songLoading || !A.ctx) return songLoading;
+  return songLoading = fetch('assets/audio/the_roomba_ran_away.mp3').then(r => r.arrayBuffer()).then(b => A.ctx.decodeAudioData(b)).then(buf => { songBuf = buf; return buf; }).catch(e => { console.warn('roomba song', e); songLoading = null; });
+}
+function playSong() {
+  if (!songBuf || songSrc) return false; const c = A.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = songBuf; g.gain.value = 0.55;
+  s.connect(g); g.connect(A.pan); s.start(); songSrc = s; s.onended = () => { if (songSrc === s) songSrc = null; };
+  A.quietUntil = c.currentTime + songBuf.duration + 0.3; return true;
+}
+function stopSong() { if (songSrc) { const s = songSrc; songSrc = null; try { s.stop(); } catch (e) { } if (A.ctx) A.quietUntil = A.ctx.currentTime + 0.3; } }
+R.song = { playing: () => !!songSrc, buf: () => songBuf, stop: stopSong };
+S.punish = {
+  enter(d) {
+    lastPunish = now; stop(); setFace('sulk'); setLight('angry'); snd('hmph'); look.shake = 0.6; loadSong();
+    say(PUNISH_LINES[0], true); d.talk = Math.max(3.5, VOX.until - now + 0.4); d.ph = 'talk';
+  },
+  update(dt, d) {
+    const a = angTo(P.x, P.z);
+    if (d.ph === 'talk') { turnTo(a); B.tv = 0; if (d.t > d.talk && (songBuf || d.t > d.talk + 6)) { d.ph = playSong() ? 'song' : 'end'; d.s0 = d.t; } return; }
+    if (d.ph === 'song') {
+      // the punishment: it blasts its own song at you and dances circles round your feet, lights flashing
+      setFace(Math.floor(now * 2) % 2 ? 'excited' : 'sulk'); setLight(['angry', 'eat', 'happy', 'curious'][Math.floor(now * 3) % 4]);
+      const D = dist(); if (D > 0.75) steer(P.x, P.z, 0.3, 0.6); else { B.tv = 0.12; B.tw = 2.4; }
+      if (!songSrc) { d.ph = 'end'; d.e0 = d.t; say(PUNISH_LINES[1], true); }
+      return;
+    }
+    if (d.ph === 'end') { stop(); turnTo(a); setFace('happy'); setLight('happy'); if (d.e0 == null) { d.e0 = d.t; } if (d.t - d.e0 > 2.6) { afterSocial(); go('wander'); } }
+  },
+  exit() { stopSong(); }
+};
+R.punish = () => { lastPunish = -999; go('punish'); };
+const PD = R.punishDebug = { checks: 0, miss: null, sure: false, why: null, trail: () => trail.slice(), reset: () => { lastPunish = -999; } };
 R.pet = function () {
+  if (state === 'punish') { if (sd.ph === 'song' || sd.ph === 'talk') { stopSong(); say(PUNISH_LINES[2], true); sd.ph = 'end'; sd.e0 = sd.t; } return true; }
   if (['startled', 'noclip', 'bump', 'pet', 'eat'].includes(state)) return false;
   if (state === 'dock') { say('FIVE MORE MINUTES', true); snd('snore'); return true; }
   if (state === 'sulk') { if (mood.offended < 0.6 || rand() < 0.5) { go('pet'); return true; } say(['DON\'T TOUCH ME', 'STILL MAD'], true); snd('hmph'); return true; }
@@ -432,7 +524,7 @@ R.hear = function (kind, data) {
     if (state === 'dock') { if (mood.energy > 0.5) return go('undock'); return say('FIVE MORE MINUTES', true); }
     if (state === 'sulk') { if (rand() < 0.35 && sd.t > 4) return go('forgive'); snd('hmph'); turnTo(angTo(P.x, P.z) + Math.PI); return say(['NOT TALKING TO YOU', 'LA LA LA', 'TALK TO MY LAWYER'], true); }
     if (state === 'eat' && sd.ph === 'munch') return say('MOUTH FULL', true);
-    if (['startled', 'noclip', 'bump', 'converse', 'come', 'pet', 'excited', 'home'].includes(state)) return;
+    if (['startled', 'noclip', 'bump', 'converse', 'come', 'pet', 'excited', 'home', 'punish'].includes(state)) return;
     if (dist() > 1.1) go('come'); else go('converse');
     if (kind === 'call' && state === 'converse') { sd.spoke = 0.6; }
   } else if (kind === 'loud') {
@@ -441,7 +533,7 @@ R.hear = function (kind, data) {
     if (dist() > 5) return;
     if (state === 'dock') { go('startled'); return; }
     if (state === 'sulk') { mood.offended = Math.min(1, mood.offended + 0.2); snd('hmph'); return say(['RUDE.', 'STILL NOT TALKING TO YOU'], true); }
-    if (['noclip', 'startled', 'pet'].includes(state)) return;
+    if (['noclip', 'startled', 'pet', 'punish'].includes(state)) return;
     if (mood.affection > 0.6 && rand() < 0.45 && loudLog.length < 3) { mood.excite = 1; go('excited'); } else go('startled');
   }
 };
@@ -515,9 +607,8 @@ R.update = function (dt, t) {
   brush.rotation.y += dt * (state === 'dock' ? 0 : (Math.abs(B.v) > 0.02 || state === 'eat' ? 26 : 6));
   crown.rotation.z = 0.18 + Math.sin(now * 2.1) * 0.02 + body.rotation.z * 2;
   faceAcc += dt; if (faceAcc > 1 / 15) { faceAcc = 0; drawFace(); }
-  // bubble follows above it
-  bubble.position.set(B.x, 0.36 + look.hop, B.z);
-  const op = clamp((bubbleUntil - now) * 3, 0, 1); bubble.material.opacity = op; bubble.visible = op > 0.01;
+  // its voice: greet once you're in, remember where it cleaned, maybe punish you for walking on it
+  greetTick(); trailTick(dt); punishTick(dt);
   // audio
   if (A.ctx) {
     const ct = A.ctx.currentTime, awake = state !== 'dock';
