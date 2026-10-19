@@ -54,7 +54,7 @@ const { x0, x1, z0, z1, top, th } = DESK;
 blk(x1 - x0, th, z1 - z0, wood, (x0 + x1) / 2, top - th / 2, (z0 + z1) / 2);                         // top
 const PED = { x0: x0 + 0.02, x1: x0 + 0.40, z0: z0 + 0.02, z1: z1 - 0.02, h: top - th - 0.004 };
 blk(PED.x1 - PED.x0, PED.h, PED.z1 - PED.z0, woodDark, (PED.x0 + PED.x1) / 2, PED.h / 2, (PED.z0 + PED.z1) / 2);
-for (let i = 0; i < 3; i++) {                                                                          // drawer fronts + brass pulls
+for (let i = 0; i < 2; i++) {                                                                          // drawer fronts + brass pulls (the top drawer opens: js/drawers.js)
   const dh = 0.19, gy = 0.06 + i * 0.215;
   blk(PED.x1 - PED.x0 - 0.03, dh, 0.014, wood, (PED.x0 + PED.x1) / 2, gy + dh / 2, PED.z1 + 0.007);
   blk(0.09, 0.014, 0.012, brass, (PED.x0 + PED.x1) / 2, gy + dh * 0.62, PED.z1 + 0.02);
@@ -151,12 +151,8 @@ const slotHole = blk(0.066, 0.002, 0.004, black, SLOT.x, SLOT.top + 0.0006, SLOT
 const ledM = new THREE.MeshBasicMaterial({ color: 0xff3a2a });
 const LED_Z = KB_ZF - 0.03, led = blk(0.008, 0.004, 0.008, ledM, KB.x + 0.19, slopeY(LED_Z) + 0.0015, LED_Z); led.userData.dynamic = true;   // slot light, front right like a C64's power light
 
-// ------------------------------------------------------------ a few things on the desk: floppies and a mug of pens
+// ------------------------------------------------------------ a few things on the desk: a mug of pens (the floppies live in js/drawers.js: you can pick them up)
 {
-  const fl = [0x1c1c22, 0x1a2a4a];
-  fl.forEach((c, i) => { const f = blk(0.09, 0.003, 0.09, phong({ color: c, shininess: 40 }), -2.33 + i * 0.012, top + 0.0015 + i * 0.0032, -1.62 - i * 0.01); f.rotation.y = 0.25 - i * 0.35; });
-  const lab = plate(0.06, 0.03, 128, (x, W, H) => { x.fillStyle = '#f2ead6'; x.fillRect(0, 0, W, H); x.fillStyle = '#2a3c9a'; x.font = 'italic 17px "Comic Sans MS", cursive'; x.fillText('roomba.bas', 6, 26); x.fillStyle = '#c03030'; x.fillRect(0, H - 8, W, 4); });
-  lab.rotation.set(-Math.PI / 2, 0, -0.1); lab.position.set(-2.33 + 0.012, top + 0.0015 + 0.0032 + 0.0024, -1.63 - 0.022); root.add(lab);
   const mugM = phong({ color: 0x2f8f8a, shininess: 50, specular: 0x333333 });
   const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.035, 0.095, 18, 1, true), mugM); mug.position.set(-1.49, top + 0.0475, -1.90); root.add(mug);
   const mugIn = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.033, 0.09, 18, 1, true), phong({ color: 0x1c4a48, side: THREE.BackSide })); mugIn.position.set(-1.49, top + 0.05, -1.90); root.add(mugIn);
