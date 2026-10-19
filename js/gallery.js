@@ -1,12 +1,13 @@
-// Unity's photo wall: her own black-and-white childhood photos, hung above the bed on the left wall like a gallery wall
-// that grew over the years. Ten pictures (she sent ten, two of them the same file, then the ping pong table): the six
-// kids on the sofa, the carnival prince at her hospital crib, the ping pong table and seven shots of the old street
-// (some from the city archive, the family ones digitised from her dad's pictures). They are her real photos, never generated, recoloured or cropped: tools/make_gallery_atlas.py
-// only packs them into one texture (assets/img/gallery_atlas.jpg) and each picture keeps its own shape.
-// Scattered, not a grid: every photo in its own frame (walnut, black, gold, white, some with a cream mat), different
-// sizes and heights, a little crooked, a couple overlapping the one next to them (those hang on deeper frames, so
-// nothing shares a plane), with a soft shadow on the wallpaper behind each one.
-// Three draw calls (frames, photos, shadows), no lights, no interaction: it's a wall of memories, it just hangs there.
+// Unity's photo board: her own black-and-white childhood photos, pinned and taped to one big cork board above the bed
+// on the left wall. Ten pictures: the six kids on the sofa, the carnival prince at her hospital crib, the ping pong table
+// and seven shots of the old street (some from the city archive, the family ones digitised from her dad's pictures).
+// They are her real photos, never generated, recoloured or cropped: tools/make_gallery_atlas.py only packs them into one
+// texture (assets/img/gallery_atlas.jpg) and each picture keeps its own shape.
+// Her feedback on the first version (a scattered wall of framed photos): "a bit too chaos, the frames overlap". So: no
+// frames, no overlaps. One cork board in a chunky oak frame, the photos as old white-bordered prints in three loose rows,
+// a little tilted, held by coloured thumbtacks or strips of masking / washi tape. Nothing overlaps another photo.
+// Depth order (no z-fighting): wall < board backing < cork 1.6 cm < print shadow +2.5 mm < print paper +5 mm < photo +7.5 mm < tape +10 mm < pins.
+// Five draw calls (board, prints, photos, tape, pins), no interaction: it's a wall of memories, it just hangs there.
 (function () {
 'use strict';
 const RV = window.RV, THREE = window.THREE; if (!RV || !RV.scene) return;
@@ -21,23 +22,30 @@ root.position.set(-RX, 0, 0); root.rotation.y = Math.PI / 2; scene.add(root);
 // atlas rects from tools/make_gallery_atlas.py: [u0, v0, u1, v1, pixel w, pixel h]
 const UV = {"kids": [0.07324, 0.78223, 0.25928, 0.96826, 381, 381], "hospital": [0.40381, 0.77734, 0.59473, 0.97266, 391, 400], "street_a": [0.69531, 0.77734, 0.96973, 0.97266, 562, 400], "street_b": [0.0332, 0.52734, 0.29932, 0.72266, 545, 400], "street_c": [0.36084, 0.52734, 0.6377, 0.72266, 567, 400], "street_d": [0.69482, 0.52734, 0.96973, 0.72266, 563, 400], "street_e": [0.02539, 0.27734, 0.30762, 0.47266, 578, 400], "street_f": [0.36182, 0.27734, 0.63721, 0.47266, 564, 400], "street_g": [0.69141, 0.27734, 0.97314, 0.47266, 577, 400], "pingpong": [0.02197, 0.02734, 0.31104, 0.22266, 592, 400]};
 
-const FR = { walnut: 0x5a3a22, black: 0x17141a, gold: 0xc9a043, white: 0xece6da, oak: 0x8a6034 };
-const MAT = { cream: 0xe9e0cc, white: 0xf2eee6 };
-// u: along the wall (world z = -u), y: centre height, w: photo width (m), rot: tilt (deg), b: frame border, m: mat width,
-// layer: 0 on the wall, 1 hangs over a neighbour on a deeper frame
-const ITEMS = [
-  { id: 'kids',     u: -0.20, y: 1.62, w: 0.40, rot: 0.0,  frame: 'walnut', b: 0.035, m: 0.05,  mat: 'cream', layer: 0 },
-  { id: 'hospital', u: 0.27,  y: 1.86, w: 0.28, rot: 1.8,  frame: 'gold',   b: 0.022, m: 0.035, mat: 'cream', layer: 1 },
-  { id: 'street_a', u: -0.78, y: 1.98, w: 0.40, rot: -1.2, frame: 'black',  b: 0.03,  m: 0,     layer: 0 },
-  { id: 'street_b', u: 0.63,  y: 1.42, w: 0.32, rot: 0.8,  frame: 'white',  b: 0.025, m: 0.03,  mat: 'white', layer: 0 },
-  { id: 'street_c', u: -0.64, y: 1.47, w: 0.30, rot: -2.0, frame: 'oak',    b: 0.03,  m: 0,     layer: 1 },
-  { id: 'street_d', u: 0.12,  y: 2.21, w: 0.26, rot: 1.2,  frame: 'black',  b: 0.018, m: 0.025, mat: 'cream', layer: 0 },
-  { id: 'street_e', u: -0.33, y: 2.10, w: 0.34, rot: -0.7, frame: 'gold',   b: 0.022, m: 0,     layer: 0 },
-  { id: 'street_f', u: -1.20, y: 1.66, w: 0.24, rot: 2.2,  frame: 'walnut', b: 0.028, m: 0,     layer: 0 },
-  { id: 'pingpong', u: 0.25,  y: 1.37, w: 0.29, rot: -1.6, frame: 'black',  b: 0.024, m: 0.03,  mat: 'cream', layer: 1 },
-  { id: 'street_g', u: 0.86,  y: 1.92, w: 0.36, rot: -1.0, frame: 'black',  b: 0.028, m: 0.04,  mat: 'cream', layer: 0 },
+// the board: u (along the wall) -1.30 .. 1.12, y 1.12 .. 2.40
+const BOARD = { u: -0.09, y: 1.76, W: 2.42, H: 1.28, frame: 0.045, depth: 0.016 };
+const CORK_Z = BOARD.depth, PAPER = 0.005, PHOTO = 0.0075, TAPE = 0.010;
+const BORDER = 0.022;    // white print border round each photo: pins and tape sit on it, never on the picture
+
+// three loose rows; h = photo height (m), dy = nudge up/down, rot = tilt (deg), hold = how it's stuck up
+const ROWS = [
+  { y: 2.165, items: [
+    { id: 'street_a', h: 0.29, dy: 0.006,  rot: -1.6, hold: 'pin',   pin: 0xd23a32 },
+    { id: 'street_d', h: 0.29, dy: -0.008, rot: 1.2,  hold: 'tape',  tape: 0xe8dcb4 },
+    { id: 'street_g', h: 0.29, dy: 0.004,  rot: -0.8, hold: 'pins2', pin: 0xf0c02a },
+  ] },
+  { y: 1.775, items: [
+    { id: 'street_b', h: 0.29, dy: -0.004, rot: 1.5,  hold: 'tape',  tape: 0xf2a7b8 },
+    { id: 'kids',     h: 0.31, dy: 0.004,  rot: -0.6, hold: 'tape4', tape: 0xe8dcb4 },
+    { id: 'hospital', h: 0.30, dy: -0.002, rot: 1.0,  hold: 'pin',   pin: 0x2f7ad6 },
+    { id: 'street_c', h: 0.29, dy: 0.006,  rot: -1.3, hold: 'tape',  tape: 0x9fd8c2 },
+  ] },
+  { y: 1.385, items: [
+    { id: 'street_e', h: 0.29, dy: 0.004,  rot: 0.9,  hold: 'pins2', pin: 0x3fae5a },
+    { id: 'pingpong', h: 0.29, dy: -0.006, rot: -1.4, hold: 'tape',  tape: 0xf5d36a },
+    { id: 'street_f', h: 0.29, dy: 0.002,  rot: 1.7,  hold: 'pin',   pin: 0xd23a32 },
+  ] },
 ];
-const FD = 0.02, LAYER = 0.022, WALL = 0.004;   // frame depth; each layer hangs 2.2 cm further out; layer 0 is 4 mm off the wall
 
 // --- geometry helpers: bake every piece into one non-indexed buffer per draw call
 function Buf() { return { p: [], n: [], uv: [], c: [] }; }
@@ -59,56 +67,81 @@ function mesh(buf, mat, name) {
   const o = new THREE.Mesh(g, mat); o.name = name; root.add(o); return o;
 }
 
-// soft shadow texture: a blurred dark rectangle
-const sc = document.createElement('canvas'); sc.width = sc.height = 128; const sx = sc.getContext('2d');
-sx.filter = 'blur(9px)'; sx.fillStyle = '#000'; sx.fillRect(22, 22, 84, 84);
-const shadowTex = new THREE.CanvasTexture(sc);
+// cork texture: warm tan with darker and lighter granules (seeded, so it's the same every load)
+const cc = document.createElement('canvas'); cc.width = cc.height = 512; const cx = cc.getContext('2d');
+cx.fillStyle = '#b07a46'; cx.fillRect(0, 0, 512, 512);
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+for (let i = 0; i < 9000; i++) {
+  const s = rnd(); cx.fillStyle = s < 0.45 ? `rgba(120,74,38,${0.25 + rnd() * 0.4})` : s < 0.8 ? `rgba(200,150,95,${0.25 + rnd() * 0.4})` : `rgba(80,48,24,${0.3 + rnd() * 0.4})`;
+  const r = 0.6 + rnd() * 2.2; cx.beginPath(); cx.arc(rnd() * 512, rnd() * 512, r, 0, 6.283); cx.fill();
+}
+const corkTex = new THREE.CanvasTexture(cc); corkTex.wrapS = corkTex.wrapT = THREE.RepeatWrapping; corkTex.encoding = THREE.sRGBEncoding;
 
-const frames = Buf(), photos = Buf(), shadows = Buf(), placed = [];
+const board = Buf(), cork = Buf(), prints = Buf(), photos = Buf(), tape = Buf(), pins = Buf(), placed = [];
 const M4 = new THREE.Matrix4(), T = new THREE.Matrix4(), Q = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1), S1 = new THREE.Vector3(1, 1, 1);
-for (const it of ITEMS) {
-  const r = UV[it.id], w = it.w, h = w * r[5] / r[4], L = 0.006;
-  const mw = it.m || L;                                  // no mat: the inner lip sits just outside the print, never over it
-  const iw = w + 2 * mw, ih = h + 2 * mw, W = iw + 2 * it.b, H = ih + 2 * it.b;
-  const d = WALL + it.layer * LAYER;                     // back of this frame, off the wall
-  Q.setFromAxisAngle(Z, it.rot * Math.PI / 180);
-  const base = new THREE.Matrix4().compose(new THREE.Vector3(it.u, it.y, 0), Q, S1);
-  const at = (x, y, z) => M4.copy(base).multiply(T.makeTranslation(x, y, z));
-  const fc = FR[it.frame];
-  // frame: top + bottom run the full width, the sides butt in between them
-  put(frames, new THREE.BoxGeometry(W, it.b, FD), at(0, (H - it.b) / 2, d + FD / 2), fc);
-  put(frames, new THREE.BoxGeometry(W, it.b, FD), at(0, -(H - it.b) / 2, d + FD / 2), fc);
-  put(frames, new THREE.BoxGeometry(it.b, H - 2 * it.b, FD), at(-(W - it.b) / 2, 0, d + FD / 2), fc);
-  put(frames, new THREE.BoxGeometry(it.b, H - 2 * it.b, FD), at((W - it.b) / 2, 0, d + FD / 2), fc);
-  // a slim inner lip in a darker shade, so the frame reads as moulded, not flat
-  const lip = new THREE.Color(fc).multiplyScalar(0.55).getHex();
-  put(frames, new THREE.BoxGeometry(iw, L, FD * 0.5), at(0, ih / 2 - L / 2, d + FD * 0.25 + FD * 0.25), lip);
-  put(frames, new THREE.BoxGeometry(iw, L, FD * 0.5), at(0, -ih / 2 + L / 2, d + FD * 0.25 + FD * 0.25), lip);
-  put(frames, new THREE.BoxGeometry(L, ih - 2 * L, FD * 0.5), at(-iw / 2 + L / 2, 0, d + FD * 0.5), lip);
-  put(frames, new THREE.BoxGeometry(L, ih - 2 * L, FD * 0.5), at(iw / 2 - L / 2, 0, d + FD * 0.5), lip);
-  // backing / mat, recessed into the frame; the photo sits 5 mm in front of it (the bevel line 2.5 mm)
-  const back = d + FD * 0.35;
-  put(frames, new THREE.PlaneGeometry(iw, ih), at(0, 0, back), it.m ? MAT[it.mat] : 0x0c0a0c);
-  if (it.m) put(frames, new THREE.PlaneGeometry(w + 0.006, h + 0.006), at(0, 0, back + 0.0025), 0x8a8070);   // bevel line round the photo
-  put(photos, new THREE.PlaneGeometry(w, h), at(0, 0, back + 0.005), null, r);
-  // deeper frames get a dark spacer block behind them, inset 5 cm, so they don't float off the wall
-  if (d > WALL + 0.001) put(frames, new THREE.BoxGeometry(W - 0.1, H - 0.1, d - 0.002), at(0, 0, 0.001 + (d - 0.002) / 2), 0x1a1210);
-  // soft shadow on the wallpaper, a little below, deeper frames throw a wider one
-  const sp = 0.07 + it.layer * 0.05;
-  put(shadows, new THREE.PlaneGeometry((W + sp) * 1.5, (H + sp) * 1.5), at(0.004, -0.018 - it.layer * 0.012, 0.0025));
-  placed.push({ id: it.id, u: it.u, y: it.y, worldZ: -it.u, w, h, W, H, rot: it.rot, layer: it.layer, front: d + FD, aspect: +(w / h).toFixed(4), srcAspect: +(r[4] / r[5]).toFixed(4) });
+const X90 = new THREE.Matrix4().makeRotationX(Math.PI / 2);   // cylinders point out of the board
+
+// board: dark backing, cork face, oak frame round it
+const B = BOARD, oak = 0x9a6a3a, F = B.frame;
+const bAt = (x, y, z) => new THREE.Matrix4().makeTranslation(B.u + x, B.y + y, z);
+put(board, new THREE.BoxGeometry(B.W - 0.02, B.H - 0.02, CORK_Z - 0.005), bAt(0, 0, 0.001 + (CORK_Z - 0.005) / 2), 0x3a2618);
+put(board, new THREE.BoxGeometry(B.W, F, CORK_Z + 0.012), bAt(0, (B.H - F) / 2, (CORK_Z + 0.012) / 2 + 0.0005), oak);
+put(board, new THREE.BoxGeometry(B.W, F, CORK_Z + 0.012), bAt(0, -(B.H - F) / 2, (CORK_Z + 0.012) / 2 + 0.0005), oak);
+put(board, new THREE.BoxGeometry(F, B.H - 2 * F, CORK_Z + 0.012), bAt(-(B.W - F) / 2, 0, (CORK_Z + 0.012) / 2 + 0.0005), oak);
+put(board, new THREE.BoxGeometry(F, B.H - 2 * F, CORK_Z + 0.012), bAt((B.W - F) / 2, 0, (CORK_Z + 0.012) / 2 + 0.0005), oak);
+const cw = B.W - 2 * F, ch = B.H - 2 * F, cg = new THREE.PlaneGeometry(cw, ch);
+const cuv = cg.attributes.uv; for (let i = 0; i < cuv.count; i++) cuv.setXY(i, cuv.getX(i) * cw / 0.6, cuv.getY(i) * ch / 0.6);
+put(cork, cg, bAt(0, 0, CORK_Z), null);
+const inner = { u0: B.u - cw / 2, u1: B.u + cw / 2, y0: B.y - ch / 2, y1: B.y + ch / 2 };
+
+for (const row of ROWS) {
+  const dims = row.items.map(it => { const r = UV[it.id]; const h = it.h, w = h * r[4] / r[5]; return { w, h, PW: w + 2 * BORDER, PH: h + 2 * BORDER }; });
+  const total = dims.reduce((s, d) => s + d.PW, 0), gap = (cw - total) / (row.items.length + 1);
+  let u = inner.u0 + gap;
+  row.items.forEach((it, k) => {
+    const d = dims[k], r = UV[it.id], cu = u + d.PW / 2, cy = row.y + it.dy; u += d.PW + gap;
+    Q.setFromAxisAngle(Z, it.rot * Math.PI / 180);
+    const base = new THREE.Matrix4().compose(new THREE.Vector3(cu, cy, 0), Q, S1);
+    const at = (x, y, z) => M4.copy(base).multiply(T.makeTranslation(x, y, z));
+    put(prints, new THREE.PlaneGeometry(d.PW, d.PH), at(0, 0, CORK_Z + PAPER), 0xf1ece0);              // white print border
+    put(prints, new THREE.PlaneGeometry(d.PW, d.PH), at(0.004, -0.006, CORK_Z + 0.0025), 0x4a2e18);   // its shadow on the cork
+    put(photos, new THREE.PlaneGeometry(d.w, d.h), at(0, 0, CORK_Z + PHOTO), null, r);
+    const top = d.PH / 2 - BORDER / 2;   // middle of the top border
+    const holds = [], V = new THREE.Vector3();
+    const mark = (x, y, w, h, a) => { V.set(x, y, 0).applyMatrix4(base); holds.push({ u: +V.x.toFixed(4), y: +V.y.toFixed(4), w, h, rot: it.rot + a }); };
+    const pin = (x, y, c) => { mark(x, y, 0.017, 0.017, 0);
+      put(pins, new THREE.CylinderGeometry(0.0085, 0.0085, 0.006, 16), at(x, y, CORK_Z + TAPE + 0.003).multiply(X90), c);
+      put(pins, new THREE.CylinderGeometry(0.005, 0.0075, 0.007, 16), at(x, y, CORK_Z + TAPE + 0.0095).multiply(X90), new THREE.Color(c).multiplyScalar(0.8).getHex());
+    };
+    // tape strip: 4.2 cm tall, sits across the print's edge with at most 1.9 cm on the print, so it stays on the white border
+    const strip = (x, y, a, c) => (mark(x, y, 0.075, 0.038, a), put(tape, new THREE.PlaneGeometry(0.075, 0.038), at(x, y, CORK_Z + TAPE).multiply(T.makeRotationZ(a * Math.PI / 180)), c));
+    if (it.hold === 'pin') pin(0, top, it.pin);
+    else if (it.hold === 'pins2') { pin(-d.PW / 2 + 0.03, top, it.pin); pin(d.PW / 2 - 0.03, top, it.pin); }
+    else if (it.hold === 'tape') strip(0, d.PH / 2, 0, it.tape);
+    else if (it.hold === 'tape4') { const ex = d.PW / 2 - 0.035; strip(-ex, d.PH / 2, 0, it.tape); strip(ex, d.PH / 2, 0, it.tape); strip(-ex, -d.PH / 2, 0, it.tape); strip(ex, -d.PH / 2, 0, it.tape); }
+    placed.push({ id: it.id, u: +cu.toFixed(4), y: +cy.toFixed(4), worldZ: -cu, w: d.w, h: d.h, W: d.PW, H: d.PH, rot: it.rot, hold: it.hold, holds,
+      front: CORK_Z + PHOTO, aspect: +(d.w / d.h).toFixed(4), srcAspect: +(r[4] / r[5]).toFixed(4) });
+  });
 }
 
-const frameMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 40, specular: 0x2a2620 });
+const boardMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 30, specular: 0x2a2018 });
+const corkMat = new THREE.MeshPhongMaterial({ map: corkTex, emissiveMap: corkTex, emissive: 0x2a2a2a, shininess: 4, specular: 0x0a0806 });
+const printMat = new THREE.MeshPhongMaterial({ vertexColors: true, emissive: 0x262626, shininess: 20, specular: 0x1a1a1a });
 const atlas = new THREE.TextureLoader().load('assets/img/gallery_atlas.jpg', () => { api.ready = true; });
 atlas.encoding = THREE.sRGBEncoding;
 atlas.anisotropy = (RV.renderer && RV.renderer.capabilities.getMaxAnisotropy()) || 4;
 // a little self-light so the old prints stay readable in the lava-lamp dark, like the other posters
 const photoMat = new THREE.MeshPhongMaterial({ map: atlas, emissiveMap: atlas, emissive: 0x4a4a4a, shininess: 25, specular: 0x1c1c1c });
-const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.5, depthWrite: false });
-const mShadow = mesh(shadows, shadowMat, 'photoWallShadows'); mShadow.renderOrder = -1;
-const mFrames = mesh(frames, frameMat, 'photoWallFrames');
+const tapeMat = new THREE.MeshPhongMaterial({ vertexColors: true, emissive: 0x202020, transparent: true, opacity: 0.88, shininess: 10, depthWrite: false,
+  polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+const pinMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x666666, emissive: 0x181818 });
+const mBoard = mesh(board, boardMat, 'photoBoardFrame');
+const mCork = mesh(cork, corkMat, 'photoBoardCork');
+const mPrints = mesh(prints, printMat, 'photoBoardPrints');
 const mPhotos = mesh(photos, photoMat, 'photoWallPhotos');
+const mTape = mesh(tape, tapeMat, 'photoBoardTape'); mTape.renderOrder = 2;
+const mPins = mesh(pins, pinMat, 'photoBoardPins');
 
-const api = RV.gallery = { root, frames: mFrames, photos: mPhotos, shadows: mShadow, items: placed, ready: false, count: placed.length };
+const api = RV.gallery = { root, board: mBoard, cork: mCork, frames: mBoard, prints: mPrints, photos: mPhotos, tape: mTape, pins: mPins,
+  items: placed, inner, border: BORDER, ready: false, count: placed.length };
 })();

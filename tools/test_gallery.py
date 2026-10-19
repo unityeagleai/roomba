@@ -1,7 +1,7 @@
-"""Desktop test for Unity's photo wall above the bed (js/gallery.js): ten photos load from the atlas, every photo keeps
-its own shape, every frame sits on the left wall above the headboard, below the picture rail, clear of the FIND ME ON
-poster and the cartridge shelf; the layout is scattered (several heights, sizes and tilts, not a grid) and any two frames
-that overlap hang on different layers; each photo is the first thing a ray from the room hits (not hidden behind a
+"""Desktop test for Unity's photo board above the bed (js/gallery.js): ten photos load from the atlas, every photo keeps
+its own shape, the cork board sits on the left wall above the headboard, below the picture rail, clear of the FIND ME ON
+poster and the cartridge shelf; every print lies fully on the cork, no two prints overlap, no pin or tape strip covers
+any photo, prints are a little tilted and held by pins and tape; each photo is the first thing a ray from the room hits (not hidden behind a
 neighbour or furniture), and on screen each photo centre is drawn grey (the black-and-white print, not the purple
 wallpaper); no console errors. Usage: python3 tools/test_gallery.py URL OUTDIR"""
 import sys, json, os, itertools, math
@@ -28,7 +28,7 @@ with sync_playwright() as p:
         G.root.updateMatrixWorld(true); const f = a => a.toArray().map(v => +v.toFixed(3));
         const fb = new THREE.Box3().setFromObject(G.frames), pb = new THREE.Box3().setFromObject(G.photos);
         return { ready: G.ready, count: G.count, tex: t && t.image ? t.image.width + 'x' + t.image.height : null, items: G.items,
-          frames: { min: f(fb.min), max: f(fb.max) }, photos: { min: f(pb.min), max: f(pb.max) }, RX: RV.room.RX, RH: RV.room.RH,
+          frames: { min: f(fb.min), max: f(fb.max) }, photos: { min: f(pb.min), max: f(pb.max) }, RX: RV.room.RX, RH: RV.room.RH, inner: G.inner,
           socialsZ: RV.socials ? [RV.socials.AT.z - RV.socials.W / 2, RV.socials.AT.z + RV.socials.W / 2] : null };
       })()''')
     res['gallery'] = g
@@ -40,26 +40,33 @@ with sync_playwright() as p:
     check('below_picture_rail', fr['max'][1] < 2.455, fr['max'][1])
     check('clear_of_socials_poster', g['socialsZ'] is None or fr['min'][2] > g['socialsZ'][1] + 0.05, [fr['min'][2], g['socialsZ']])
     check('clear_of_cartridge_shelf_side', fr['max'][2] < 1.76, fr['max'][2])
-    ys = sorted(set(round(i['y'], 2) for i in g['items'])); ws = sorted(set(round(i['w'], 2) for i in g['items'])); rots = [i['rot'] for i in g['items']]
-    check('scattered_not_a_grid', len(ys) >= 8 and len(ws) >= 6 and len(set(rots)) >= 8, {'heights': ys, 'widths': ws, 'tilts': rots})
-    # overlapping frames (rotated rectangles, separating axis test) must hang on different layers
-    def corners(i, shrink=0):
-        c, s = math.cos(math.radians(i['rot'])), math.sin(math.radians(i['rot'])); Wd, Hd = i['W'] - shrink, i['H'] - shrink
-        return [(i['u'] + c * x - s * y, i['y'] + s * x + c * y) for x, y in ((-Wd/2, -Hd/2), (Wd/2, -Hd/2), (Wd/2, Hd/2), (-Wd/2, Hd/2))]
-    def overlap(a, b, sa=0):
-        A, B = corners(a, sa), corners(b)
+    # one cork board, no frames per photo: prints in loose rows, every print fully on the cork, no two prints overlap,
+    # no pin or tape strip lies on any photo (only on the white print borders and the cork), slightly tilted, pins + tape
+    rots = [i['rot'] for i in g['items']]; inner = g['inner']
+    check('loose_and_tilted', len(set(rots)) >= 8 and all(0.3 <= abs(r) <= 3 for r in rots), rots)
+    holds = [h['rot'] for i in g['items'] for h in i['holds']]
+    check('pins_and_tape', {i['hold'] for i in g['items']} >= {'pin', 'tape'} and all(i['holds'] for i in g['items']), [(i['id'], i['hold'], len(i['holds'])) for i in g['items']])
+    def corners(c):
+        co, si = math.cos(math.radians(c['rot'])), math.sin(math.radians(c['rot']))
+        return [(c['u'] + co * x - si * y, c['y'] + si * x + co * y) for x, y in ((-c['w']/2, -c['h']/2), (c['w']/2, -c['h']/2), (c['w']/2, c['h']/2), (-c['w']/2, c['h']/2))]
+    def overlap(ra, rb):
+        A, B = corners(ra), corners(rb)
         for P in (A, B):
             for k in range(4):
                 ex, ey = P[(k+1) % 4][0] - P[k][0], P[(k+1) % 4][1] - P[k][1]; nx, ny = -ey, ex
                 pa = [nx*x + ny*y for x, y in A]; pb = [nx*x + ny*y for x, y in B]
                 if max(pa) <= min(pb) or max(pb) <= min(pa): return False
         return True
-    pairs = [(a['id'], b['id'], a['layer'], b['layer']) for a, b in itertools.combinations(g['items'], 2) if overlap(a, b)]
-    check('some_frames_overlap', len(pairs) >= 2, pairs)
-    check('overlapping_frames_on_different_layers', all(la != lb for _, _, la, lb in pairs), pairs)
-    # the spacer block behind a deeper frame (inset 5 cm each side) must not cut through the frame it hangs over
-    hits = [(a['id'], b['id']) for a in g['items'] for b in g['items'] if a['layer'] > b['layer'] and overlap(a, b, 0.1)]
-    check('spacers_clear_of_lower_frames', not hits, hits)
+    printR = lambda i: {'u': i['u'], 'y': i['y'], 'w': i['W'], 'h': i['H'], 'rot': i['rot']}
+    photoR = lambda i: {'u': i['u'], 'y': i['y'], 'w': i['w'], 'h': i['h'], 'rot': i['rot']}
+    pp = [(a['id'], b['id']) for a, b in itertools.combinations(g['items'], 2) if overlap(printR(a), printR(b))]
+    check('no_photos_overlap', not pp, pp)
+    cov = [(h_owner['id'], i['id']) for h_owner in g['items'] for h in h_owner['holds'] for i in g['items'] if overlap(h, photoR(i))]
+    check('no_pin_or_tape_covers_a_photo', not cov, cov)
+    out = [i['id'] for i in g['items'] if not all(inner['u0'] + 0.005 < x < inner['u1'] - 0.005 and inner['y0'] + 0.005 < y < inner['y1'] - 0.005 for x, y in corners(printR(i)))]
+    check('every_print_on_the_cork', not out, out)
+    sizes = sorted(round(i['h'], 3) for i in g['items'])
+    check('readable_size', sizes[0] >= 0.27, sizes)
     # rays from three spots in the room to each photo centre: the first solid thing hit is the photo mesh
     spots = {'mid_room': (0.6, 0.3), 'foot_of_bed': (-0.3, 0.2), 'by_door': (-1.0, 1.6)}
     vis = ev('''(spots) => { const G = RV.gallery, out = {}; const rc = new THREE.Raycaster(); RV.scene.updateMatrixWorld(true);
