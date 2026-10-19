@@ -102,15 +102,43 @@ const kbg = new THREE.BoxGeometry(KB.w, 1, KB.d);
 { const p = kbg.attributes.position; for (let i = 0; i < p.count; i++) { if (p.getY(i) > 0) { const z = p.getZ(i); p.setY(i, KB.hf + (KB.hb - KB.hf) * (KB.d / 2 - z) / KB.d); } else p.setY(i, 0); } kbg.computeVertexNormals(); }
 const kb = new THREE.Mesh(kbg, beige); kb.name = 'keyboard'; kb.position.set(KB.x, top, KB.z); root.add(kb);
 const keysW = KB.w - 0.11, keysD = KB.d / Math.cos(SLOPE) - 0.03;
-const keys = plate(keysW, keysD, 512, (x, W, H) => {
-  x.fillStyle = '#cfc19c'; x.fillRect(0, 0, W, H);
-  const rows = 5, kh = (H - 40) / rows, ku = (W - 70) / 15;
-  const rr = (X, Y, w, h, c) => { x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(X + 1, Y + 3, w, h); x.fillStyle = c; x.fillRect(X, Y, w, h); x.fillStyle = 'rgba(255,255,255,.12)'; x.fillRect(X + 2, Y + 2, w - 4, 3); };
-  for (let r = 0; r < rows - 1; r++) { const off = [0, 0.5, 0.75, 1.1][r]; for (let k = 0; k < 15 - Math.ceil(off); k++) { const X = 8 + (off + k) * ku, Y = 8 + r * kh; rr(X + 2, Y + 2, ku - 5, kh - 6, '#4a3a2e'); x.fillStyle = '#d9cfb8'; x.fillRect(X + 8, Y + 8, 5, 4); } }
-  rr(8 + 3.2 * ku, 8 + 4 * kh + 2, 8 * ku, kh - 6, '#4a3a2e');                                    // space bar
-  for (let i = 0; i < 4; i++) rr(W - 56, 8 + i * (H - 24) / 4 + 2, 46, (H - 24) / 4 - 8, '#b9ab88');   // F-keys
-});
+// the keys are a canvas with real legends: point at one (VR trigger) or click it to type on the CRT once the card is in.
+// Layout keeps the old breadbin shape: four staggered rows, a space bar, and the big light keys on the right (CLR, DEL, RETURN).
+const KW = 1024, KH = Math.round(KW * keysD / keysW), kc = canvas(KW, KH), kx = kc.getContext('2d');
+const KEYMAP = [];                                         // { k: 'A', x, y, w, h, fn } in canvas pixels
+{
+  const kh = (KH - 80) / 5, ku = (KW - 140) / 15, add = (k, X, Y, w, h, fn) => KEYMAP.push({ k, x: X, y: Y, w, h, fn: !!fn });
+  const rows = [[0, '1234567890+-?!'.split('').concat(['DEL'])], [0.5, 'QWERTYUIOP@*\'"'.split('')], [0.75, 'ASDFGHJKL:;='.split('').concat([['RETURN', 2]])], [1.1, 'ZXCVBNM,./()#'.split('')]];
+  rows.forEach(([off, ks], r) => { let u = off; for (const e of ks) { const [k, w] = Array.isArray(e) ? e : [e, 1]; add(k, 16 + u * ku + 4, 16 + r * kh + 4, w * ku - 10, kh - 12, k.length > 1); u += w; } });
+  add('SPACE', 16 + 3.2 * ku + 4, 16 + 4 * kh + 4, 8 * ku - 10, kh - 12, false);
+  const fh = (KH - 48) / 4;
+  add('CLR', KW - 112, 16 + 4, 92, fh - 16, true); add('DEL', KW - 112, 16 + fh + 4, 92, fh - 16, true); add('RETURN', KW - 112, 16 + 2 * fh + 4, 92, 2 * fh - 16, true);
+}
+function drawKeys(hover, flash) {
+  const x = kx; x.fillStyle = '#cfc19c'; x.fillRect(0, 0, KW, KH); x.textAlign = 'center'; x.textBaseline = 'middle';
+  for (const K of KEYMAP) {
+    const hot = K === flash ? 2 : K === hover ? 1 : 0;
+    const face = hot === 2 ? '#3fae66' : hot === 1 ? (K.fn ? '#e6d8b2' : '#7a5e48') : (K.fn ? '#b9ab88' : '#4a3a2e');
+    const dy = hot === 2 ? 3 : 0;
+    x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(K.x + 2, K.y + 6, K.w, K.h);
+    x.fillStyle = face; x.fillRect(K.x, K.y + dy, K.w, K.h); x.fillStyle = 'rgba(255,255,255,.12)'; x.fillRect(K.x + 4, K.y + dy + 4, K.w - 8, 6);
+    if (hot === 1) { x.strokeStyle = '#ffe14a'; x.lineWidth = 4; x.strokeRect(K.x + 2, K.y + dy + 2, K.w - 4, K.h - 4); }
+    const lab = K.k === 'SPACE' ? '' : K.k, fs = lab.length > 1 ? Math.min(24, Math.floor((K.w - 12) / (lab.length * 0.62))) : 30;
+    x.font = 'bold ' + fs + 'px "Courier New", monospace'; x.fillStyle = hot === 2 ? '#0a1a0e' : K.fn ? '#3a2c22' : '#efe6cc';
+    if (lab) x.fillText(lab, K.x + K.w / 2, K.y + dy + K.h / 2 + 1);
+  }
+  ktex.needsUpdate = true;
+}
+const ktex = ctex(kc);
+const keys = new THREE.Mesh(new THREE.PlaneGeometry(keysW, keysD), phong({ map: ktex, shininess: 20, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+keys.userData.dynamic = true;                              // not merged: the legends light up when you point at / press a key
+drawKeys(null, null);
 keys.rotation.x = -Math.PI / 2 + SLOPE; keys.position.set(KB.x - KB.w / 2 + 0.006 + keysW / 2, slopeY(KB.z) + 0.0015 / Math.cos(SLOPE), KB.z); keys.name = 'keys'; root.add(keys);
+function keyAt(px, py) {
+  let best = null, bd = 10;                                // inside a key, or within 10 px of one (the gaps between keys still count)
+  for (const K of KEYMAP) { const dx = Math.max(K.x - px, 0, px - (K.x + K.w)), dy = Math.max(K.y - py, 0, py - (K.y + K.h)), d = Math.hypot(dx, dy); if (d < bd || (d === 0 && bd === 0)) { bd = d; best = K; if (d === 0) break; } }
+  return best;
+}
 // the card reader: a dark faceplate with the slot along its back edge and a little light
 const acc = plate(0.078, 0.06, 128, (x, W, H) => {
   x.fillStyle = '#26252b'; x.fillRect(0, 0, W, H); x.strokeStyle = '#55545e'; x.lineWidth = 3; x.strokeRect(2, 2, W - 4, H - 4);
@@ -226,6 +254,8 @@ const SFX = {
   eject: () => { tick(0.5, 0.7, 1600); },
   powerOn: () => { beep(60, 50, 0.25, 0.18, 'sine'); setTimeout(() => beep(880, 0, 0.07, 0.05), 380); setTimeout(() => beep(1320, 0, 0.09, 0.05), 460); },
   key: () => tick(0.16 + Math.random() * 0.08, 0.8 + Math.random() * 0.5, 2200 + Math.random() * 900),
+  press: () => { tick(0.32, 0.7 + Math.random() * 0.2, 1800 + Math.random() * 500); setTimeout(() => tick(0.12, 1.1, 3000), 45); },
+  ret: () => beep(1180, 0, 0.05, 0.035),
 };
 
 // ------------------------------------------------------------ the terminal
@@ -233,6 +263,9 @@ const COLS = 28, ROWS = 14, FONT = '16px "Press Start 2P", monospace', LX = 30, 
 const api = RV.desk = {};
 let cardState = 'rest', anim = 0;          // rest | inserting | in | ejecting ; anim 0 (rest) .. 1 (in the slot)
 let term = 'idle', fx = null, lines = [], queue = [], cur = null, wait = 0, blinkT = 0, blinkOn = true, dirty = true, visits = 0, typed = 0;
+// typing: after Charlie's greeting (or straight away: a key fast-forwards it) the last '> ' line is yours. term 'input'.
+const IN_W = COLS - 2, IN_MAX = IN_W * 4, KEEP = 60;
+let inp = '', focus = false, nudge = 0, hoverKey = null, hoverAt = 0, flashKey = null, flashT = 0, drawnHover = null, drawnFlash = null, keysTyped = 0;
 function wrap(text, first, cont) {
   const res = []; let line = first, empty = true;
   for (const w of text.split(' ')) { const cand = empty ? line + w : line + ' ' + w; if (!empty && cand.length > COLS) { res.push(line); line = cont + w; } else line = cand; empty = false; }
@@ -258,8 +291,25 @@ function buildScript() {
   q.push({ text: '> ', cps: 13, pause: 0.8 });
   return q;
 }
-function startSession() { lines = []; queue = buildScript(); cur = null; wait = 0; typed = 0; term = 'boot'; fx = { kind: 'on', t: 0 }; SFX.powerOn(); visits++; dirty = true; }
-function endSession() { term = 'idle'; queue = []; cur = null; fx = { kind: 'off', t: 0 }; dirty = true; }
+function startSession() { inp = ''; lines = []; queue = buildScript(); cur = null; wait = 0; typed = 0; term = 'boot'; fx = { kind: 'on', t: 0 }; SFX.powerOn(); visits++; dirty = true; }
+function endSession() { inp = ''; focus = false; term = 'idle'; queue = []; cur = null; fx = { kind: 'off', t: 0 }; dirty = true; }
+function wrapInput(t) { const out = ['> ' + t.slice(0, IN_W)]; for (let i = IN_W; i < t.length; i += IN_W) out.push('  ' + t.slice(i, i + IN_W)); return out; }
+function viewLines() { return (term === 'input' ? lines.concat(wrapInput(inp)) : lines).slice(-ROWS); }
+function finishScript() {                                  // a key during the greeting: show the rest of it at once
+  if (term !== 'boot' && term !== 'typing') return;
+  fx = null; if (cur) { if (!lines.length) lines.push(''); lines[lines.length - 1] += cur.text.slice(cur.i); cur = null; }
+  for (const q of queue) lines.push(q.text); queue = []; term = 'done'; dirty = true;
+}
+function typeKey(k) {
+  finishScript();
+  if (term === 'done') { if (lines.length && lines[lines.length - 1] === '> ') lines.pop(); inp = ''; term = 'input'; }
+  if (term !== 'input') return false;
+  if (k === 'DEL') inp = inp.slice(0, -1);
+  else if (k === 'RETURN') { lines.push(...wrapInput(inp)); if (lines.length > KEEP) lines.splice(0, lines.length - KEEP); inp = ''; SFX.ret(); }
+  else if (k === 'CLR') lines = [];
+  else { const ch = k === 'SPACE' ? ' ' : k; if (ch.length === 1 && inp.length < IN_MAX) inp += ch; }
+  keysTyped++; blinkOn = true; blinkT = 0; dirty = true; return true;
+}
 function punctPause(ch) { return ch === '.' || ch === '?' || ch === '!' ? 0.32 : ch === ',' || ch === ':' ? 0.18 : 0; }
 function typeTick(dt) {
   if (term !== 'boot' && term !== 'typing') return;
@@ -297,12 +347,13 @@ function draw() {
   if (a) {
     x.font = FONT; x.textBaseline = 'top';
     x.fillStyle = live ? '#86ffae' : '#3fae66'; x.shadowColor = live ? 'rgba(80,255,140,.85)' : 'rgba(60,200,110,.5)'; x.shadowBlur = live ? 9 : 5;
-    const show = live ? lines : ['**** CHARLIE 64 ****', '', '64K RAM SYSTEM', '', 'READY.', 'INSERT ACCESS CARD'];
+    const show = live ? viewLines() : ['**** CHARLIE 64 ****', '', '64K RAM SYSTEM', '', 'READY.', nudge > 0 && blinkOn ? '>> INSERT ACCESS CARD <<' : 'INSERT ACCESS CARD'];
     show.forEach((l, i) => x.fillText(l, LX, LY + i * LH));
-    if (blinkOn && (term === 'idle' || term === 'done' || term === 'typing')) {
+    if (blinkOn && (term === 'idle' || term === 'done' || term === 'typing' || term === 'input')) {
       const li = Math.max(0, show.length - 1), cx = LX + (term === 'idle' ? 0 : show[li].length * 16), cy = LY + (term === 'idle' ? show.length : li) * LH;
       x.fillRect(cx, cy, 14, 16);
     }
+    if (live && focus && !(RV.renderer && RV.renderer.xr.isPresenting)) { x.font = '9px "Press Start 2P", monospace'; x.fillText('KEYBOARD ON - ESC TO STOP', LX, SH - 28); }
     x.shadowBlur = 0;
   }
   x.fillStyle = 'rgba(0,0,0,.24)'; for (let y = 0; y < SH; y += 3) x.fillRect(0, y, SW, 1);   // scanlines
@@ -328,13 +379,48 @@ function toggle() { audioOut(); if (cardState === 'rest') return insert(); if (c
 // ------------------------------------------------------------ picking
 const ray = new THREE.Raycaster(); ray.far = 8;
 function pick(o, d) { ray.set(o, d); const h = ray.intersectObject(card.userData.hit, false)[0]; return h ? h.distance : null; }
+const kray = new THREE.Raycaster(); kray.far = 2.6;        // keys answer when you're at the desk, not from across the room
+function pickKey(o, d) { kray.set(o, d); const h = kray.intersectObject(keys, false)[0]; if (!h || !h.uv) return null; const K = keyAt(h.uv.x * KW, (1 - h.uv.y) * KH); return K ? { t: h.distance, key: K } : null; }
+function hitDesk(o, d) { const c = pick(o, d), k = pickKey(o, d); if (c != null && (!k || c <= k.t)) return { t: c, card: true }; return k; }
+
+// ------------------------------------------------------------ typing: virtual keys (pointer / VR trigger) and, on a computer, the real keyboard
+const isXR = () => !!(RV.renderer && RV.renderer.xr.isPresenting);
+function press(k, how) {
+  const K = typeof k === 'string' ? KEYMAP.find(e => e.k === k) : k, name = K ? K.k : String(k);
+  if (K) { flashKey = K; flashT = 0.13; }
+  audioOut(); SFX.press(); if (how === 'vr' && RV.haptic) RV.haptic(0.18, 14);
+  if (cardState !== 'in') { nudge = 1.8; dirty = true; return true; }   // no card, no computer: the READY screen asks for it
+  if (how === 'ptr' && !isXR()) focus = true;              // clicked a key on screen: the real keyboard types too, until Esc
+  typeKey(name); return true;
+}
+function typeText(t) { for (const ch of String(t).toUpperCase()) press(ch === ' ' ? 'SPACE' : ch === '\n' ? 'RETURN' : ch, 'api'); return api._debug(); }
+addEventListener('keydown', e => {                         // capture phase: runs before app.js, so typed letters don't walk you around
+  if (!focus || cardState !== 'in' || e.ctrlKey || e.metaKey || e.altKey) return;
+  let k = null;
+  if (e.key === 'Escape') { focus = false; dirty = true; e.stopImmediatePropagation(); return; }
+  if (e.key === 'Backspace') k = 'DEL'; else if (e.key === 'Enter') k = 'RETURN'; else if (e.key === ' ') k = 'SPACE';
+  else if (e.key.length === 1 && e.key >= ' ' && e.key <= '~') k = e.key.toUpperCase();
+  if (!k) return;                                          // arrows, Shift, Tab... go through: the arrow keys still walk and turn
+  e.preventDefault(); e.stopImmediatePropagation(); press(k, 'key');
+}, true);
+function keysTick(dt) {
+  if (flashT > 0) { flashT -= dt; if (flashT <= 0) flashKey = null; }
+  if (hoverKey && performance.now() - hoverAt > 160) hoverKey = null;
+  if (hoverKey !== drawnHover || flashKey !== drawnFlash) { drawnHover = hoverKey; drawnFlash = flashKey; drawKeys(hoverKey, flashKey); }
+  if (nudge > 0) { nudge -= dt; if (nudge <= 0) dirty = true; }
+  if (focus) {                                             // walked away from the desk: the keyboard lets go
+    const pl = RV.roomba && RV.roomba.player; if (pl && pl.ok && Math.hypot(pl.x - KB.x, pl.z - KB.z) > 1.7) { focus = false; dirty = true; }
+  }
+}
 
 Object.assign(api, {
   root, card, screen, stool, stoolHit, toggle, insert, eject, pick, inserts: 0, ejects: 0,
+  keys, KEYMAP, pickKey, press, typeText, keyCenter: k => { const K = KEYMAP.find(e => e.k === k); if (!K) return null; const u = (K.x + K.w / 2) / KW, v = 1 - (K.y + K.h / 2) / KH;
+    keys.updateMatrixWorld(true); return new THREE.Vector3((u - 0.5) * keysW, (v - 0.5) * keysD, 0).applyMatrix4(keys.matrixWorld); },
   DESK, MON, SCR, KB, SLOT, STOOL, CARD_H, CARD_W, CARD_REST, slopeY,
   pose: { seat: { x: STOOL.x, z: STOOL.z - 0.05 }, eye: 1.17, minEye: 0.92, settle: 4, exit: { x: -1.5, z: -0.72 }, yaw: 0, pitch: -0.38, label: 'stool' },
   ready: () => cardReady,
-  _debug: () => ({ cardState, anim: +anim.toFixed(3), term, fx: fx && fx.kind, lines: lines.slice(), typed, queue: queue.length, visits, led: ledM.color.getHex(), glow: +glow.material.opacity.toFixed(3),
+  _debug: () => ({ cardState, anim: +anim.toFixed(3), term, inp, focus, keysTyped, nudge: nudge > 0, hover: hoverKey && hoverKey.k, view: viewLines(), fx: fx && fx.kind, lines: lines.slice(), typed, queue: queue.length, visits, led: ledM.color.getHex(), glow: +glow.material.opacity.toFixed(3),
     card: { x: +card.position.x.toFixed(4), y: +card.position.y.toFixed(4), z: +card.position.z.toFixed(4) } }),
 });
 
@@ -343,7 +429,7 @@ function tickAll(dt) {
   if (cardState === 'inserting') { anim = Math.min(1, anim + dt / 1.0); placeCard(); if (anim >= 1) { cardState = 'in'; SFX.insert(); ledM.color.setHex(0x3cff6a); if (RV.haptic) RV.haptic(0.4, 50); startSession(); } }
   else if (cardState === 'ejecting') { anim = Math.max(0, anim - dt / 0.8); placeCard(); if (anim <= 0) { cardState = 'rest'; card.position.copy(pRest); card.quaternion.copy(qFlat); } }
   if (fx) { fx.t += dt; dirty = true; if (fx.t > (fx.kind === 'on' ? 0.35 : 0.3)) { fx = null; } }
-  typeTick(dt);
+  typeTick(dt); keysTick(dt);
   blinkT += dt; if (blinkT > 0.45) { blinkT = 0; blinkOn = !blinkOn; dirty = true; }
   if (dirty) draw();
   const live = term !== 'idle';
@@ -383,10 +469,14 @@ draw();
 // ------------------------------------------------------------ hook into RV.media: whichever is nearer along the ray wins
 if (RV.media) {
   const Md = RV.media, orig = { click: Md.click, selectStart: Md.selectStart, hoverT: Md.hoverT, tick: Md.tick };
-  const mine = (o, d) => { const t = pick(o, d); if (t == null) return false; const m = orig.hoverT(o, d); return m == null || t < m; };
-  Md.click = function (o, d) { if (mine(o, d)) return toggle(); return orig.click(o, d); };
-  Md.selectStart = function (c, o, d) { if (mine(o, d)) return toggle(); return orig.selectStart(c, o, d); };
-  Md.hoverT = function (o, d) { const a = orig.hoverT(o, d), b = pick(o, d); return b != null && (a == null || b < a) ? b : a; };
+  const mine = (o, d) => { const h = hitDesk(o, d); if (!h) return null; const m = orig.hoverT(o, d); return m == null || h.t < m ? h : null; };
+  Md.click = function (o, d) { const h = mine(o, d); if (h) return h.card ? toggle() : press(h.key, 'ptr'); if (focus) { focus = false; dirty = true; } return orig.click(o, d); };
+  Md.selectStart = function (c, o, d) { const h = mine(o, d); if (h) return h.card ? toggle() : press(h.key, 'vr'); return orig.selectStart(c, o, d); };
+  Md.hoverT = function (o, d) {
+    const a = orig.hoverT(o, d), h = hitDesk(o, d); if (!h || (a != null && h.t >= a)) return a;
+    if (h.key) { hoverKey = h.key; hoverAt = performance.now(); }   // the key under your pointer lights up
+    return h.t;
+  };
   Md.tick = function (dt, T) { orig.tick(dt, T); tickAll(dt, T); };
 }
 })();
