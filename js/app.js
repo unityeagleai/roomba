@@ -63,11 +63,19 @@ const ctrls = [0, 1].map(i => {
   c.addEventListener('connected', e => { c.userData.src = e.data; });
   c.addEventListener('disconnected', () => { c.userData.src = null; });
   c.addEventListener('selectstart', () => {
-    ensureAudio(); if (RV.media) { RV.media.unlock(); const r = rayFrom(c); if (RV.media.selectStart(c, r.o, r.d)) return; }   // cartridges, TV buttons, record player first
-    if (RV.zombie) { const r = rayFrom(c); if (RV.zombie.select(r.o, r.d)) return; }   // the zombie plush on the bed (it 'does nothing'... for now)
+    ensureAudio(); const r = rayFrom(c); if (RV.media) RV.media.unlock();
+    // the zombie plush, when it's the nearest thing on the ray: a tap is the scare, holding the trigger / a pinch picks it up
+    if (RV.zombie && RV.zombie.selectStart(c, r.o, r.d, RV.media ? RV.media.hoverT(r.o, r.d) : null)) { c.userData.zsel = true; return; }
+    if (RV.media && RV.media.selectStart(c, r.o, r.d)) return;   // cartridges, TV buttons, record player
     pointAction(c);
   });
-  c.addEventListener('selectend', () => { if (RV.media) { const r = rayFrom(c); RV.media.selectEnd(c, r.o, r.d); } });
+  c.addEventListener('selectend', () => {
+    if (c.userData.zsel) { c.userData.zsel = false; if (RV.zombie) RV.zombie.selectEnd(c); return; }
+    if (RV.media) { const r = rayFrom(c); RV.media.selectEnd(c, r.o, r.d); }
+  });
+  // grip: grab the zombie (pointing at it, or with your hand next to it); let go to drop it where you are
+  c.addEventListener('squeezestart', () => { if (!RV.zombie) return; ensureAudio(); const r = rayFrom(c); RV.zombie.grab(c, r.o, r.d, RV.media ? RV.media.hoverT(r.o, r.d) : null); });
+  c.addEventListener('squeezeend', () => { if (RV.zombie) RV.zombie.release(c); });
   return c;
 });
 const reticle = new THREE.Mesh(new THREE.RingGeometry(0.035, 0.05, 20), new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: 0.8, depthWrite: false }));
@@ -118,11 +126,24 @@ const keys = {};
 addEventListener('keydown', e => { keys[e.code] = true; if (!started) return; if (e.code === 'KeyC') { ensureAudio(); R.hear('call'); } if (e.code === 'KeyV') { ensureAudio(); R.hear('loud'); clap(); } });
 addEventListener('keyup', e => { keys[e.code] = false; });
 let drag = null;
-renderer.domElement.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }; });
-addEventListener('pointermove', e => { if (!drag) return; P.yaw -= (e.clientX - drag.x) * 0.005; P.pitch = clamp(P.pitch - (e.clientY - drag.y) * 0.004, -1.3, pose && pose.S.lie ? 1.55 : 1.0); drag.x = e.clientX; drag.y = e.clientY; });
+function mouseRay(e) { const ray = new THREE.Raycaster(); ray.setFromCamera({ x: e.clientX / innerWidth * 2 - 1, y: -(e.clientY / innerHeight) * 2 + 1 }, camera); return { o: ray.ray.origin.clone(), d: ray.ray.direction.clone() }; }
+renderer.domElement.addEventListener('pointerdown', e => {
+  drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY };
+  // mouse down on the zombie plush: dragging moves it instead of looking around (a plain click is still the scare)
+  if (started && !renderer.xr.isPresenting && RV.zombie) { const r = mouseRay(e); if (RV.zombie.first(r.o, r.d, RV.media ? RV.media.hoverT(r.o, r.d) : null) != null) drag.z = 'maybe'; }
+});
+addEventListener('pointermove', e => {
+  if (drag && drag.z) {
+    if (drag.z === 'maybe' && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) >= 6) drag.z = RV.zombie.dragStart() ? 'on' : null;
+    if (drag.z === 'on') { const r = mouseRay(e); RV.zombie.dragTo(r.o, r.d); }
+    if (drag.z) return;
+  }
+  if (!drag) return; P.yaw -= (e.clientX - drag.x) * 0.005; P.pitch = clamp(P.pitch - (e.clientY - drag.y) * 0.004, -1.3, pose && pose.S.lie ? 1.55 : 1.0); drag.x = e.clientX; drag.y = e.clientY; });
+addEventListener('pointercancel', () => { if (drag && drag.z === 'on') RV.zombie.release('mouse'); drag = null; });
 addEventListener('pointerup', e => {
-  if (!drag) return; const moved = Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy); drag = null;
-  if (moved < 6 && started && !renderer.xr.isPresenting) { ensureAudio(); const ray = new THREE.Raycaster(); ray.setFromCamera({ x: e.clientX / innerWidth * 2 - 1, y: -(e.clientY / innerHeight) * 2 + 1 }, camera); if (RV.media) { RV.media.unlock(); if (RV.media.click(ray.ray.origin.clone(), ray.ray.direction.clone())) return; } if (RV.zombie && RV.zombie.click(ray.ray.origin.clone(), ray.ray.direction.clone())) return; act(resolveRay(ray.ray.origin, ray.ray.direction)); }
+  if (!drag) return; const moved = Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy), zd = drag.z; drag = null;
+  if (zd === 'on') { RV.zombie.release('mouse'); return; }   // put it down where you dragged it
+  if (moved < 6 && started && !renderer.xr.isPresenting) { ensureAudio(); const ray = new THREE.Raycaster(); ray.setFromCamera({ x: e.clientX / innerWidth * 2 - 1, y: -(e.clientY / innerHeight) * 2 + 1 }, camera); if (RV.media) RV.media.unlock(); if (zd === 'maybe' && RV.zombie.click(ray.ray.origin.clone(), ray.ray.direction.clone())) return; if (RV.media && RV.media.click(ray.ray.origin.clone(), ray.ray.direction.clone())) return; if (RV.zombie && RV.zombie.click(ray.ray.origin.clone(), ray.ray.direction.clone())) return; act(resolveRay(ray.ray.origin, ray.ray.direction)); }
 });
 
 // ---------------------------------------------------------- movement + collision (Unity's feet vs furniture and the Roomba)
@@ -300,7 +321,7 @@ async function enterVR() {
     await renderer.xr.setSession(session); if (pose) standUp('vr'); begin(); $('hud').classList.add('gone');
     try { renderer.xr.setFoveation(1); } catch (e) { }
     camera.position.set(0, 0, 0);
-    session.addEventListener('end', () => { if (pose) standUp('vr end'); camera.position.set(0, 1.6, 0); $('intro').classList.remove('gone'); started = true; });
+    session.addEventListener('end', () => { if (RV.zombie) RV.zombie.releaseAll(); if (pose) standUp('vr end'); camera.position.set(0, 1.6, 0); $('intro').classList.remove('gone'); started = true; });
   } catch (e) { $('vrState').textContent = 'Could not start VR: ' + (e.message || e); }
 }
 $('bVR').addEventListener('click', enterVR);
