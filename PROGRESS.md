@@ -105,3 +105,12 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
   door (within 1.05 m of x -1.4, z +RZ, after 3 s of song) with 'PUNISHMENT OVER. YOU MAY GO.', 45 s max. Bumps and
   feet mid-dance: quiet back-up wiggle, no lines over the song. Pet still cancels.
 - [ ] Roomba voice NOT heard in a headset yet
+
+## 2026-10-19 (evening) — two stickers on the door
+- js/stickers.js: Unity's 'lol' and 'Wt...feathers' stickers (her transparent PNG cutouts from Drive, byte-identical:
+  assets/img/sticker_lol.png, assets/img/sticker_feathers.png) stuck on the inside of the door. lol 16 cm tall, lower-left
+  of the upper panel (as you face the door), tilted 7 deg, clear of the ROOMBA XING sign; feathers 15 cm, top of the lower
+  panel by the latch side, tilted -5 deg, below the knob. 2.5 mm off the panel, no depth write, polygon offset (no
+  z-fighting); premultiplied texture + blending (no dark fringe from the black RGB under alpha 0); grey self-light so the
+  light switch dims them at night. Door geometry untouched. tools/test_stickers.py.
+- [ ] NOT seen in a headset yet
