@@ -58,7 +58,8 @@ const glow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), glowMat); glow.rotati
 const bubC = canvas(512, 176), bubX = bubC.getContext('2d'), bubT = new THREE.CanvasTexture(bubC); bubT.encoding = THREE.sRGBEncoding;
 const bubble = new THREE.Sprite(new THREE.SpriteMaterial({ map: bubT, transparent: true, depthTest: false, opacity: 0 }));
 bubble.center.set(0.5, 0); bubble.scale.set(0.5, 0.172, 1); bubble.renderOrder = 10; bubble.visible = false; scene.add(bubble);
-// (the floating bubble is retired: it showed through the bed when the Roomba was underneath. It speaks its lines now.)
+// caption of what it says (like the statues). It used to show through the bed when the Roomba drove underneath: now,
+// while it's under the bed, the caption floats just above the mattress over it instead of through it.
 
 // ============================================================ items it eats
 const items = R.items = [];
@@ -97,7 +98,7 @@ R.initAudio = function (ctx) {
   // its robot voice: one sprite of every line it says (tools/make_roomba_voice.py) -> {TEXT: [start, dur]}
   fetch('assets/audio/roomba_voice.json').then(r => r.json()).then(j => { VOX.map = j.lines; return fetch('assets/audio/roomba_voice.mp3'); })
     .then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(buf => { VOX.buf = buf; VOX.readyAt = -1; R.voiceReady = true; }).catch(e => console.warn('roomba voice', e));
-  // the full song 'The Roomba Ran Away' (Unity's own track) for the playful punishment: fetched on first use only
+  // a short, looping cut of 'The Roomba Ran Away' (Unity's own track) for the playful punishment: fetched on first use only
 };
 const VOX = R.vox = { map: null, buf: null, src: null, until: 0, readyAt: null, greeted: false, spoken: [] };
 function voiceSeg(text) {
@@ -180,7 +181,29 @@ function say(lines, force) {
   const spoke = speak(text, force);
   // no clip (or audio not started yet): a few robot chirps instead of words
   if (!spoke && A.ctx && force !== 'silent') snd('talk', Math.min(7, 2 + (text.length / 6 | 0)));
+  if (force !== 'silent') drawCaption(text);
   bubbleUntil = now + (spoke ? Math.max(1.6, VOX.until - now + 0.6) : 2.2 + text.length * 0.045); R.lastSaid = text; log.push({ t: +now.toFixed(2), say: text, voiced: spoke });
+}
+function drawCaption(text) {
+  const x = bubX, W = 512, H = 176; x.clearRect(0, 0, W, H);
+  x.font = '24px ' + PIX; const words = text.split(' '), rows = []; let cur = '';
+  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > 440 && cur) { rows.push(cur); cur = w; } else cur = t; } rows.push(cur);
+  const fs = rows.length > 3 ? 18 : 24, lh = rows.length > 3 ? 24 : 34; if (fs !== 24) x.font = fs + 'px ' + PIX;
+  const bw = Math.min(490, Math.max(...rows.map(r => x.measureText(r).width)) + 44), bh = rows.length * lh + 30, bx = (W - bw) / 2, by = Math.max(4, H - bh - 26);
+  x.fillStyle = '#100820'; rr(x, bx - 4, by - 4, bw + 8, bh + 8, 14); x.fillStyle = '#fffbea'; rr(x, bx, by, bw, bh, 11);
+  x.fillStyle = '#ffd23a'; x.fillRect(bx + 10, by + 4, bw - 20, 4);   // the King's gold stripe
+  x.fillStyle = '#100820'; x.beginPath(); x.moveTo(W / 2 - 16, by + bh + 2); x.lineTo(W / 2, H - 2); x.lineTo(W / 2 + 16, by + bh + 2); x.fill(); x.fillStyle = '#fffbea'; x.beginPath(); x.moveTo(W / 2 - 10, by + bh - 2); x.lineTo(W / 2, H - 10); x.lineTo(W / 2 + 10, by + bh - 2); x.fill();
+  x.fillStyle = '#100820'; x.textAlign = 'center'; x.textBaseline = 'middle'; rows.forEach((r, i) => x.fillText(r, W / 2, by + 15 + lh / 2 + i * lh));
+  bubT.needsUpdate = true; R.caption = text;
+}
+const BED = (RV.obstacles || []).find(o => o.name === 'bed');
+const camP = new THREE.Vector3();
+function captionTick() {
+  const op = clamp((bubbleUntil - now) * 3, 0, 1); bubble.material.opacity = op; bubble.visible = op > 0.01;
+  if (!bubble.visible) return;
+  const under = BED && B.x > BED.x0 - 0.05 && B.x < BED.x1 + 0.05 && B.z > BED.z0 - 0.05 && B.z < BED.z1 + 0.05;
+  bubble.position.set(B.x, (under ? 0.78 : 0.3) + look.hop, B.z); R.captionUnderBed = !!under;
+  if (RV.camera) { RV.camera.getWorldPosition(camP); const k = clamp(camP.distanceTo(bubble.position) / 1.4, 0.8, 2.0); bubble.scale.set(0.5 * k, 0.172 * k, 1); }
 }
 function rr(x, X, Y, w, h, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.fill(); }
 
@@ -476,18 +499,23 @@ function segDist(x, z, ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, L = dx * dx + dz * dz; let t = L ? ((x - ax) * dx + (z - az) * dz) / L : 0; t = Math.max(0, Math.min(1, t));
   return Math.hypot(x - ax - t * dx, z - az - t * dz);
 }
-let songBuf = null, songSrc = null, songLoading = null;
+let songBuf = null, songSrc = null, songGain = null, songLoading = null;
+const SONG_MAX = 45;
 function loadSong() {
   if (songBuf || songLoading || !A.ctx) return songLoading;
-  return songLoading = fetch('assets/audio/the_roomba_ran_away.mp3').then(r => r.arrayBuffer()).then(b => A.ctx.decodeAudioData(b)).then(buf => { songBuf = buf; return buf; }).catch(e => { console.warn('roomba song', e); songLoading = null; });
+  return songLoading = fetch('assets/audio/the_roomba_ran_away_short.mp3').then(r => r.arrayBuffer()).then(b => A.ctx.decodeAudioData(b)).then(buf => { songBuf = buf; return buf; }).catch(e => { console.warn('roomba song', e); songLoading = null; });
 }
 function playSong() {
-  if (!songBuf || songSrc) return false; const c = A.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = songBuf; g.gain.value = 0.55;
-  s.connect(g); g.connect(A.pan); s.start(); songSrc = s; s.onended = () => { if (songSrc === s) songSrc = null; };
-  A.quietUntil = c.currentTime + songBuf.duration + 0.3; return true;
+  // it loops (that's the annoying part) until you head for the door, or SONG_MAX seconds at most
+  if (!songBuf || songSrc) return false; const c = A.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = songBuf; s.loop = true; g.gain.value = 0.55;
+  s.connect(g); g.connect(A.pan); s.start(); songSrc = s; songGain = g; s.onended = () => { if (songSrc === s) songSrc = null; };
+  A.quietUntil = c.currentTime + SONG_MAX + 1; return true;
 }
-function stopSong() { if (songSrc) { const s = songSrc; songSrc = null; try { s.stop(); } catch (e) { } if (A.ctx) A.quietUntil = A.ctx.currentTime + 0.3; } }
-R.song = { playing: () => !!songSrc, buf: () => songBuf, stop: stopSong };
+function stopSong() { if (songSrc) { const s = songSrc, g = songGain, c = A.ctx; songSrc = null; try { g.gain.setTargetAtTime(0, c.currentTime, 0.06); s.stop(c.currentTime + 0.35); } catch (e) { try { s.stop(); } catch (e2) { } } A.quietUntil = c.currentTime + 0.4; } }
+// the door (room.js: x -1.4, on the z = +RZ wall). Walking up to it ends the punishment: 'PUNISHMENT OVER. YOU MAY GO.'
+const DOOR = { x: -1.4, z: RV.room.RZ }, DOOR_R = 1.05;
+const nearDoor = () => P.ok && Math.hypot(P.x - DOOR.x, P.z - DOOR.z) < DOOR_R;
+R.song = { playing: () => !!songSrc, buf: () => songBuf, stop: stopSong, nearDoor: () => nearDoor(), DOOR, DOOR_R, SONG_MAX };
 S.punish = {
   enter(d) {
     lastPunish = now; stop(); setFace('sulk'); setLight('angry'); snd('hmph'); look.shake = 0.6; loadSong();
@@ -499,12 +527,17 @@ S.punish = {
     if (d.ph === 'song') {
       // the punishment: it blasts its own song at you and dances circles round your feet, lights flashing
       setFace(Math.floor(now * 2) % 2 ? 'excited' : 'sulk'); setLight(['angry', 'eat', 'happy', 'curious'][Math.floor(now * 3) % 4]);
-      const D = dist(); if (D > 0.75) steer(P.x, P.z, 0.3, 0.6); else { B.tv = 0.12; B.tw = 2.4; }
-      if (!songSrc) { d.ph = 'end'; d.e0 = d.t; say(PUNISH_LINES[1], true); }
+      const D = dist(); if (d.back > 0) { d.back -= dt; B.tv = -0.12; B.tw = 2.6; } else if (D > 0.75) steer(P.x, P.z, 0.3, 0.6); else { B.tv = 0.12; B.tw = 2.4; }
+      const left = d.t - d.s0 > 3 && nearDoor(), late = d.t - d.s0 > SONG_MAX;
+      if (left || late) { stopSong(); d.why = left ? 'door' : 'max'; }
+      if (!songSrc) { d.ph = 'end'; d.e0 = d.t; say(PUNISH_LINES[1], true); R.punishDebug.ended = d.why || 'song'; }
       return;
     }
     if (d.ph === 'end') { stop(); turnTo(a); setFace('happy'); setLight('happy'); if (d.e0 == null) { d.e0 = d.t; } if (d.t - d.e0 > 2.6) { afterSocial(); go('wander'); } }
   },
+  // bumping into furniture or your feet mid-dance: a little back-up wiggle, no talking over its own song
+  onBump(o, sp, d) { if (d.ph === 'end') return false; snd('bump', 0.4); look.squish = 0.6; d.back = 0.45; return true; },
+  onFoot(sp, d) { if (d.ph === 'end') return false; d.back = 0.3; return true; },
   exit() { stopSong(); }
 };
 R.punish = () => { lastPunish = -999; go('punish'); };
@@ -538,6 +571,9 @@ R.hear = function (kind, data) {
   }
 };
 R.go = go; R.state = () => state;
+R.say = (t, f) => { say(t, f); return R.lastSpoken === t; };   // voice + caption, like in the room
+R.place = (x, z) => { B.x = x; B.z = z; };   // tests: put it somewhere (e.g. under the bed)
+R.captionDebug = () => ({ visible: bubble.visible, opacity: +bubble.material.opacity.toFixed(2), y: +bubble.position.y.toFixed(2), underBed: !!R.captionUnderBed, text: R.caption || '' });
 
 // ============================================================ face drawing
 const EYE = { neutral: 1, happy: 1 };
@@ -608,7 +644,7 @@ R.update = function (dt, t) {
   crown.rotation.z = 0.18 + Math.sin(now * 2.1) * 0.02 + body.rotation.z * 2;
   faceAcc += dt; if (faceAcc > 1 / 15) { faceAcc = 0; drawFace(); }
   // its voice: greet once you're in, remember where it cleaned, maybe punish you for walking on it
-  greetTick(); trailTick(dt); punishTick(dt);
+  greetTick(); trailTick(dt); punishTick(dt); captionTick();
   // audio
   if (A.ctx) {
     const ct = A.ctx.currentTime, awake = state !== 'dock';

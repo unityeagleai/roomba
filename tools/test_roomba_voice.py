@@ -1,8 +1,9 @@
-"""Desktop test for the Roomba's robot voice (js/roomba.js + assets/audio/roomba_voice.*): the floating speech bubble
-never shows (it showed through the bed); the voice sprite loads; it greets you once you're in; every line it says has a
+"""Desktop test for the Roomba's voice (js/roomba.js + assets/audio/roomba_voice.*, Unity's ElevenLabs Eva clips): a caption
+shows what it says, and floats above the mattress (not through the bed) while it's under the bed; the voice sprite loads; it greets you once you're in; every line it says has a
 clip; foot apologies are spoken; the playful punishment (spoken line, then Unity's song 'The Roomba Ran Away' through the
 Roomba's own speaker, dancing round your feet) starts by itself when you walk over a spot it just cleaned, and a pet
-cancels it with a spoken line and the song stops. Usage: python3 tools/test_roomba_voice.py URL OUTDIR"""
+cancels it with a spoken line and the song stops. The song is a short ~21 s loop of the chorus; walking up to the door
+ends it ('PUNISHMENT OVER. YOU MAY GO.'). Usage: python3 tools/test_roomba_voice.py URL OUTDIR"""
 import sys, json, os, re
 from playwright.sync_api import sync_playwright
 URL = sys.argv[1]; OUT = sys.argv[2]; os.makedirs(OUT, exist_ok=True)
@@ -31,9 +32,8 @@ with sync_playwright() as p:
     sp = ev('RV.roomba.vox.spoken.slice()')
     res['spoken_after_entry'] = sp
     check('greets_on_entry', ev('RV.roomba.vox.greeted') and any(s['text'] in ('WELCOME HOME, UNITY', "HI UNITY. I CLEANED. YOU'RE WELCOME.", "OH. YOU'RE BACK. ALL HAIL ME.") for s in sp), sp)
-    # bubble never visible
-    bub = ev('''(() => { let n = 0, vis = 0; RV.scene.traverse(o => { if (o.isSprite && o.renderOrder === 10) { n++; if (o.visible) vis++; } }); return { n, vis }; })()''')
-    check('no_floating_bubble', bub['vis'] == 0, bub)
+    vj = json.load(open(os.path.join(ROOT, 'assets/audio/roomba_voice.json')))
+    check('voice_is_eva', 'Eva' in vj.get('voice', '') and len(vj['lines']) == 152, vj.get('voice'))
     # every line in roomba.js has a voice clip
     src = open(os.path.join(ROOT, 'js/roomba.js')).read()
     lines = set()
@@ -54,8 +54,18 @@ with sync_playwright() as p:
     check('every_line_has_a_clip', not missing and len(lines) > 100, missing)
     # foot apology spoken through the voice (say(), the same path the foot bump uses)
     W(4000)
-    ok = ev("RV.roomba.speak('SORRY. YOUR FOOT.', true)"); W(300)
+    ok = ev("RV.roomba.say('SORRY. YOUR FOOT.', true)"); W(300)
     check('foot_apology_spoken', ok and ev('RV.roomba.lastSpoken') == 'SORRY. YOUR FOOT.', ev('RV.roomba.lastSpoken'))
+    cap = ev('RV.roomba.captionDebug()'); res['caption_open'] = cap
+    check('caption_shows_line', cap['visible'] and cap['text'] == 'SORRY. YOUR FOOT.' and not cap['underBed'] and cap['y'] < 0.6, cap)
+    W(4500)
+    c2 = ev('RV.roomba.captionDebug()'); check('caption_fades_after', not c2['visible'] or c2['text'] != 'SORRY. YOUR FOOT.', c2)   # gone, or it has moved on to a new line
+    # under the bed: caption rises above the mattress instead of showing through it
+    ev("__rv.go('idle'); RV.roomba.place(-1.6, 0.2)"); W(200)
+    ev("RV.roomba.say('ZZZ', true)"); W(300)
+    cap = ev('RV.roomba.captionDebug()'); res['caption_under_bed'] = cap
+    check('caption_above_bed_when_under_it', cap['visible'] and cap['underBed'] and cap['y'] > 0.7, cap)
+    ev("RV.roomba.place(0.6, -1.0); __rv.go('wander')")
     W(2500)
     # natural punishment: let it clean a stretch, then walk over the fresh trail
     ev("RV.roomba.punishDebug.sure = true; RV.roomba.punishDebug.reset(); __rv.go('wander')")
@@ -90,7 +100,7 @@ with sync_playwright() as p:
         if ev('RV.roomba.song.playing()'): break
         W(300)
     dur = ev('RV.roomba.song.buf() ? RV.roomba.song.buf().duration : 0')
-    check('runaway_song_plays', ev('RV.roomba.song.playing()') and 160 < dur < 180, dur)
+    check('runaway_song_plays_short_loop', ev('RV.roomba.song.playing()') and 15 < dur < 30, dur)
     W(3000); pg.screenshot(path=f'{OUT}/01_punish_dance.png')
     check('still_punishing_during_song', ev('RV.roomba.debug().state') == 'punish' and ev('RV.roomba.song.playing()'), ev('RV.roomba.debug().state'))
     ev('__rv.pet()'); W(500)
@@ -104,7 +114,22 @@ with sync_playwright() as p:
     check('cooldown_no_repeat', ev('RV.roomba.debug().state') != 'punish', ev('RV.roomba.debug().state'))
     ev('RV.roomba.punishDebug.sure = false')
     res['log_tail'] = ev('__rv.log().slice(-15)')
-    check('bubble_still_hidden', ev('''(() => { let vis = 0; RV.scene.traverse(o => { if (o.isSprite && o.renderOrder === 10 && o.visible) vis++; }); return vis; })()''') == 0)
+    # punishment again, then walk to the door: the song stops and it lets you go
+    ev('RV.roomba.punish()')
+    for _ in range(60):
+        if ev('RV.roomba.song.playing()'): break
+        W(300)
+    W(4000)
+    check('song_loops_while_you_stay', ev('RV.roomba.song.playing()'), ev('RV.roomba.debug().state'))
+    ev(f"__rv.setPlayer({-0.3}, {0.9})"); W(600)
+    for k in range(14):
+        ev(f"__rv.setPlayer({-0.3 - k * 0.08}, {0.9 + k * 0.07})"); W(80)
+        if not ev('RV.roomba.song.playing()'): break
+    W(700)
+    res['door_end'] = [ev('RV.roomba.punishDebug.ended'), ev('RV.roomba.lastSpoken'), ev('RV.roomba.player.z'), ev('RV.roomba.debug().state'), ev('RV.roomba.player.ok')]
+    check('song_stops_at_door', not ev('RV.roomba.song.playing()') and ev('RV.roomba.punishDebug.ended') == 'door' and ev('RV.roomba.lastSpoken') == 'PUNISHMENT OVER. YOU MAY GO.', res['door_end'])
+    W(3500)
+    check('back_to_normal_after_door', ev('RV.roomba.debug().state') != 'punish', ev('RV.roomba.debug().state'))
     b.close()
 http = [c for c in res['console'] if c.startswith('HTTP')]
 errs = [c for c in res['console'] if c.startswith('PAGEERROR') or (c.startswith('HTTP') and 'episodes.json' not in c)]

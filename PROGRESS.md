@@ -93,4 +93,15 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
   'The Roomba Ran Away' (~/the_roomba_ran_away.wav -> assets/audio/the_roomba_ran_away.mp3, 2:49) from its speaker while
   it dances round your feet; pet it to cancel. Trail check runs every 0.25 s along your path since the last check (a
   quick step across a cleaned strip counts). tools/test_roomba_voice.py.
+- Roomba voice v2 = Unity's own ElevenLabs clips: "Eva - Futuristic Robot Helper" (Eleven v4), all 152 lines in one
+  346 s mp3 from her Google Drive (~/eva_clips/eva_all.mp3), lines in sorted-key order. Cut points in
+  tools/roomba_voice_eva_cuts.json (cut on pauses >= 0.3 s, faster-whisper on each piece, DP grouping to the lines; hand
+  cuts: 'feet! | Ow!' and the three snoring lines). tools/make_roomba_voice_eva.py: trim, even out loudness, light
+  small-room echo (no robot filter), 32 kHz 64k CBR sprite. Every clip re-checked with speech-to-text. Piper sprite retired.
+- Captions are back (like the statues): pixel bubble with a gold stripe over the Roomba while it talks; while it's under
+  the bed it floats just above the mattress (y 0.78) instead of showing through. R.captionDebug(), R.say(), R.place().
+- Punishment song is now a 20.8 s loop of the chorus (assets/audio/the_roomba_ran_away_short.mp3, 31.05-51.85 s of the
+  full track, 56 beats at 161.5 bpm) instead of the full 2:49 song. It loops while you stay, stops when you walk to the
+  door (within 1.05 m of x -1.4, z +RZ, after 3 s of song) with 'PUNISHMENT OVER. YOU MAY GO.', 45 s max. Bumps and
+  feet mid-dance: quiet back-up wiggle, no lines over the song. Pet still cancels.
 - [ ] Roomba voice NOT heard in a headset yet
