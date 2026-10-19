@@ -66,3 +66,10 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
 - [x] click / trigger: play; again: pause (frame held); again: carry on; end -> back to the still. preload=metadata, never autoplays. HRTF panner at the frame. Starting it pauses an episode, lifts the needle, stops the keycard poster; any of those starting pauses it. Hooks RV.media like videoposter.js
 - [x] tools/test_originframe.py (needs a Range-capable server for the end check), all old tests rerun: bed, wall, media, figurine, mirror, videoposter, zombie, socials, 0 errors; find_coplanar: no hits on the frame
 - [ ] NOT tried in a headset yet
+
+## Photo wall above the bed - run of Mon Oct 19 2026 (Unity sent her real b/w childhood photos: dad's digitised family pictures + city archive street shots; then the ping pong table)
+- [x] 11 attachments in chat, two byte-identical (01a15172-...-9f7c and ...-9965) -> 10 unique photos: six kids on the sofa, carnival prince at the hospital crib, ping pong table, 7 street shots
+- [x] tools/make_gallery_atlas.py packs them untouched (no resize/crop/recolour, 8 px edge-extended borders) into assets/img/gallery_atlas.jpg (2048x2048, 3 cols x 4 rows) and prints the UV rects pasted into js/gallery.js
+- [x] js/gallery.js: left wall (x = -RX) above the headboard, world z -1.11..1.36, y 1.21..2.35; scattered gallery-wall style (Unity: no grid, organic, some overlapping, varied heights/sizes, each in its own frame): walnut / black / gold / white / oak frames, some with cream mats, tilts -2..2.2 deg; overlapping frames hang one layer (2.2 cm) further out on a dark spacer inset 5 cm; soft shadow on the wallpaper per frame. 3 draw calls (frames vertex-coloured, photos atlas, shadows), no lights, no interaction
+- [x] tools/test_gallery.py: 10 photos loaded, aspect kept, on the wall / above headboard / below rail / clear of socials poster + shelf, scattered (10 heights, 9 widths), overlapping pairs on different layers, spacers clear, every photo the first hit from 3 spots, on-screen pixels are the print (not wallpaper), 0 errors; find_coplanar: no hits on the photo wall
+- [ ] NOT seen in a headset yet
