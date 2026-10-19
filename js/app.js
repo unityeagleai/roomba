@@ -173,6 +173,7 @@ const POSES = {
   beanbag: { seat: { x: 1.95, z: 1.45 }, eye: 0.98, minEye: 0.62, settle: 4, exit: { x: 1.2, z: 0.95 }, yaw: Math.atan2(1.95, 1.45), pitch: -0.12, label: 'beanbag' },
   bed: { seat: { x: -2.28, z: 0.2 }, eye: 0.76, minEye: 0.66, settle: 7, exit: { x: -0.25, z: 0.2 }, yaw: -Math.PI / 2, pitch: 1.5, lie: true, label: 'bed' },
 };
+if (RV.desk && RV.desk.pose) POSES.desk = RV.desk.pose;   // the stool at the desk (js/desk.js): sit at the CHARLIE 64
 let pose = null, lastStand = null;
 const poseHint = (function () {
   const c = document.createElement('canvas'); c.width = 512; c.height = 64; const x = c.getContext('2d');
@@ -226,6 +227,7 @@ const poseHits = [];
   const inv = new THREE.MeshBasicMaterial({ visible: false });
   const bb = new THREE.Mesh(new THREE.SphereGeometry(0.47, 16, 10), inv); bb.scale.set(1, 0.62, 1); bb.position.set(1.85, 0.26, 1.35); bb.name = 'beanbag'; scene.add(bb); poseHits.push(bb);
   const bd = new THREE.Mesh(new THREE.BoxGeometry(1.94, 0.36, 1.08), inv); bd.position.set(-1.59, 0.55, 0.2); bd.name = 'bed'; scene.add(bd); poseHits.push(bd);
+  if (RV.desk && RV.desk.stoolHit) poseHits.push(RV.desk.stoolHit);   // named 'desk'
 })();
 const poseRay = new THREE.Raycaster(); poseRay.far = 10;
 function posePick(o, d) { poseRay.set(o, d); const h = poseRay.intersectObjects(poseHits, false)[0]; return h ? { t: h.distance, name: h.object.name } : null; }
