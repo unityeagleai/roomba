@@ -114,3 +114,17 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
   z-fighting); premultiplied texture + blending (no dark fringe from the black RGB under alpha 0); grey self-light so the
   light switch dims them at night. Door geometry untouched. tools/test_stickers.py.
 - [ ] NOT seen in a headset yet
+
+## 2026-10-20 (night) — Roomba bedtime button on its charging station
+- Unity asked for an off button because it talks too much, then for it to be a toggle on the charging station.
+  js/roombaoff.js: red power button on top of the dock (right side, under the ROOMBA KING poster) with a CHARGE label
+  on the dock's front; generous invisible hit box; RV.media hooks (click / selectStart / hoverT / tick), no app.js change.
+- Press while it's awake -> RV.roomba.charge(): line cut at once, punishment song stops and the punishment ends, silent
+  'GOING TO CHARGE' bubble, drives home (if blocked for 12 s it noclips through) and parks square in the dock, asleep:
+  battery-filling CHARGING face, label lights green CHARGING, button ring pulses green. While charging: no voice, beeps,
+  theme, bubbles, greetings or punishments; calls/claps/pets/zombie noise/time don't wake it (petting shows a silent
+  'CHARGING... ZZZ'). Press again -> RV.roomba.wakeUp('button'): wakes, rolls straight out, talks again (no greeting).
+  Coming back into the room also wakes it (page reload; new headset session; Walk in again on a screen), with a greeting.
+  Other room audio (TV, records, statues, films) untouched. HUD hint updated (intro list left alone: it's full).
+- tools/test_roomba_charge.py (add 'quick' to start already docked).
+- [ ] NOT tried in a headset yet

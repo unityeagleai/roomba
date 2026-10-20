@@ -10,7 +10,7 @@ const wrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a
 const rand = Math.random, pick = a => a[Math.floor(rand() * a.length)];
 
 // ============================================================ model
-const root = new THREE.Group(), body = new THREE.Group(); root.add(body); scene.add(root);
+const root = new THREE.Group(), body = new THREE.Group(); root.add(body); scene.add(root); R.body = body;
 // lid: brushed silver rim, dark glossy centre, scuffs, a duct-tape repair, a marker scribble
 const topC = canvas(512, 512); (function () {
   const x = topC.getContext('2d'), r = rng(204);
@@ -108,7 +108,7 @@ function voiceSeg(text) {
   return null;
 }
 function speak(text, force) {
-  if (!A.ctx || !VOX.buf) return false; const seg = voiceSeg(text); if (!seg) return false;
+  if (R.muted || !A.ctx || !VOX.buf) return false; const seg = voiceSeg(text); if (!seg) return false;
   if (VOX.src) { if (!force && now < VOX.until) return false; try { VOX.src.stop(); } catch (e) { } VOX.src = null; }
   const c = A.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = VOX.buf; g.gain.value = VOX.gain;
   s.connect(g); g.connect(A.pan); s.start(c.currentTime + 0.02, seg[0], seg[1]); VOX.src = s; VOX.until = now + seg[1] + 0.1;
@@ -132,7 +132,7 @@ function noise(dur, freq, q, vol, delay, to) {
   s.connect(f); f.connect(g); g.connect(A.voice); s.start(t, Math.random()); s.stop(t + dur + 0.02); A.quietUntil = Math.max(A.quietUntil, t + dur + 0.15);
 }
 function snd(n, k) {
-  if (!A.ctx) return;
+  if (!A.ctx || R.muted) return;
   switch (n) {
     case 'chirp': tone(600, 1300, 0.11); tone(900, 1700, 0.1, 'square', 0.08, 0.13); break;
     case 'curious': tone(700, 700, 0.07, 'square', 0.07); tone(600, 1200, 0.18, 'square', 0.08, 0.09); break;
@@ -157,7 +157,7 @@ function snd(n, k) {
 }
 R.snd = snd;
 let themeSrc = null;
-function playTheme() { if (!A.theme || themeSrc || (R.song && R.song.playing())) return false; const s = A.ctx.createBufferSource(); s.buffer = A.theme; const g = A.ctx.createGain(); g.gain.value = 0.5; s.connect(g); g.connect(A.pan); s.start(); themeSrc = s; s.onended = () => { themeSrc = null; }; A.quietUntil = A.ctx.currentTime + s.buffer.duration + 0.3; return true; }
+function playTheme() { if (R.muted || !A.theme || themeSrc || (R.song && R.song.playing())) return false; const s = A.ctx.createBufferSource(); s.buffer = A.theme; const g = A.ctx.createGain(); g.gain.value = 0.5; s.connect(g); g.connect(A.pan); s.start(); themeSrc = s; s.onended = () => { themeSrc = null; }; A.quietUntil = A.ctx.currentTime + s.buffer.duration + 0.3; return true; }
 
 // ============================================================ the creature
 const B = R.b = { x: RV.dock.x, z: RV.dock.z, h: 0, v: 0, w: 0, tv: 0, tw: 0, ghost: false };
@@ -173,6 +173,7 @@ function setFace(e, tmpDur) { if (tmpDur) { look.tmpExpr = e; look.exprUntil = n
 // speech bubble
 let bubbleUntil = 0, lastLine = '';
 function say(lines, force) {
+  if (R.muted) return;   // voice switched off: no words, no chirps, no speech bubble
   let pool = Array.isArray(lines) ? lines : [lines];
   // with the voice on, prefer lines it can actually say out loud
   if (VOX.map && pool.length > 1) { const v = pool.filter(l => voiceSeg(l)); if (v.length) pool = v; }
@@ -230,7 +231,7 @@ const CORNERS = [[-2.4, -2.0], [-2.4, 2.0], [2.4, 2.0], [-1.6, 0.2, 'bed'], [2.4
 const S = R.states = {};
 S.dock = {
   enter(d) { stop(); setFace('sleep'); setLight('sleep'); B.h = 0; d.wake = d.wake == null ? 4 : d.wake; },
-  update(dt, d) { mood.energy = Math.min(1, mood.energy + dt / 30); look.pulse = 0.5 + 0.5 * Math.sin(now * 1.3); if ((d.t % 7) < dt) snd('snore'); if (d.t > 1.5 && (d.t % 9) < dt) say(['ZZZ', 'ZZZ...CABLES...', 'DREAMING OF CRUMBS']); if (d.t > d.wake && mood.energy > 0.85) go('undock'); }
+  update(dt, d) { mood.energy = Math.min(1, mood.energy + dt / 30); look.pulse = 0.5 + 0.5 * Math.sin(now * 1.3); if ((d.t % 7) < dt) snd('snore'); if (d.t > 1.5 && (d.t % 9) < dt) say(['ZZZ', 'ZZZ...CABLES...', 'DREAMING OF CRUMBS']); if (d.t > d.wake && mood.energy > 0.85 && !R.charging) go('undock'); }
 };
 S.undock = {
   enter(d) { snd('wake'); setFace('neutral'); setLight('calm'); B.h = 0; },
@@ -387,13 +388,22 @@ S.converse = {
     if (d.quiet > 6 || dist() > 2.5) go('follow'); }
 };
 S.home = {
-  enter(d) { setFace('sleepy'); setLight('sad'); snd('lowbat'); say('BATTERY LOW. GOING HOME', true); d.ph = 'go'; },
-  update(dt, d) { const dk = RV.dock;
-    if (d.ph === 'go') { if (steer(dk.x, dk.z + 0.4, 0.25, 0.08) < 0.09 || d.t > 25) { d.ph = 'aim'; } }
+  enter(d) { setFace('sleepy'); setLight('sad'); snd('lowbat'); say('BATTERY LOW. GOING HOME', true); d.ph = 'go'; d.all = 0; },
+  resume(d) { },
+  update(dt, d) { const dk = RV.dock; d.all = (d.all || 0) + dt;
+    // sent to charge by the station's button: it has to actually get there. If furniture or Unity's feet keep it out
+    // for 12 s it glitches through (noclip) straight to the dock, and it always ends up parked square in it.
+    const ch = R.charging; if (ch && d.all > 12 && !B.ghost) { B.ghost = true; setFace('glitch', 0.6); }
+    if (d.ph === 'go') { if (steer(dk.x, dk.z + 0.4, 0.25, 0.08, B.ghost) < 0.09 || (!ch && d.t > 25)) { d.ph = 'aim'; } }
     else if (d.ph === 'aim') { B.tv = 0; if (Math.abs(turnTo(0)) < 0.06) { d.ph = 'back'; d.t2 = 0; } }
-    else { d.t2 += dt; B.tw = 0; B.tv = -0.1; if (B.z <= dk.z + 0.01 || d.t2 > 6) { B.z = Math.max(B.z, dk.z); snd('dock'); go('dock', { wake: 20 }); } }
+    else { d.t2 += dt; B.tw = 0; B.tv = -0.1; if (B.z <= dk.z + 0.01 || d.t2 > 6) { B.z = Math.max(B.z, dk.z); this.park(d); } }
   },
-  onBump(o, sp, d) { if (d.ph === 'back') { snd('dock'); go('dock', { wake: 20 }); return true; } return false; }
+  park(d) { const dk = RV.dock;
+    if (R.charging) { if (Math.hypot(B.x - dk.x, B.z - dk.z) > 0.35) { d.ph = 'go'; d.t = 0; return; } B.x = dk.x; B.z = dk.z; B.h = 0; B.v = 0; B.w = 0; }
+    snd('dock'); go('dock', { wake: 20 });
+  },
+  onBump(o, sp, d) { if (d.ph === 'back') { this.park(d); return true; } return false; },
+  exit() { B.ghost = false; body.visible = true; }
 };
 S.pet = {
   enter(d) { stop(); setFace('love'); setLight(0xff7ad6); snd('purr'); say(['PURR.EXE', 'MORE', 'ALL HAIL ME', 'YES. THERE.', 'I ALLOW THIS'], true); mood.affection = Math.min(1, mood.affection + 0.12); mood.offended = Math.max(0, mood.offended - 0.5); d.len = 1.8; },
@@ -469,7 +479,7 @@ const GREET = ['WELCOME HOME, UNITY', 'HI UNITY. I CLEANED. YOU\'RE WELCOME.', '
 const PUNISH_LINES = ['WHERE DO YOU THINK YOU\'RE GOING? I JUST CLEANED THAT SPOT. NOW I NEED TO PUNISH YOU.', 'PUNISHMENT OVER. YOU MAY GO.', 'OK OK. PUNISHMENT CANCELLED.'];
 // greet once per visit, a moment after you come in (flat or VR) and the voice has loaded
 function greetTick() {
-  if (VOX.greeted || !VOX.buf || !A.ctx || !P.ok) return;
+  if (R.muted || VOX.greeted || !VOX.buf || !A.ctx || !P.ok) return;
   if (VOX.readyAt < 0) VOX.readyAt = now; if (now - VOX.readyAt < 1.4) return;
   VOX.greeted = true; setFace('happy', 2.5); look.hop = Math.max(look.hop, 0.02); snd('chirp');
   say(GREET[VOX.visits++ % GREET.length], true); log.push({ t: +now.toFixed(2), greet: R.lastSaid });
@@ -484,6 +494,7 @@ function trailTick(dt) {
 }
 const PUNISHABLE = ['wander', 'idle', 'notice', 'follow', 'circle', 'keepAway'];
 function punishTick(dt) {
+  if (R.muted) return;   // switched off: no song-and-dance punishments either
   // your path since the last check (so a quick step across a cleaned strip still counts)
   const px0 = PD.lx == null ? P.x : PD.lx, pz0 = PD.lz == null ? P.z : PD.lz;
   punishCheck += dt; if (punishCheck < 0.25) return; punishCheck = 0; PD.checks++; PD.lx = P.x; PD.lz = P.z;
@@ -506,6 +517,7 @@ function loadSong() {
   return songLoading = fetch('assets/audio/the_roomba_ran_away_short.mp3').then(r => r.arrayBuffer()).then(b => A.ctx.decodeAudioData(b)).then(buf => { songBuf = buf; return buf; }).catch(e => { console.warn('roomba song', e); songLoading = null; });
 }
 function playSong() {
+  if (R.muted) return false;
   // it loops (that's the annoying part) until you head for the door, or SONG_MAX seconds at most
   if (!songBuf || songSrc) return false; const c = A.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = songBuf; s.loop = true; g.gain.value = 0.55;
   s.connect(g); g.connect(A.pan); s.start(); songSrc = s; songGain = g; s.onended = () => { if (songSrc === s) songSrc = null; };
@@ -543,15 +555,47 @@ S.punish = {
 R.punish = () => { lastPunish = -999; go('punish'); };
 const PD = R.punishDebug = { checks: 0, miss: null, sure: false, why: null, trail: () => trail.slice(), reset: () => { lastPunish = -999; } };
 R.pet = function () {
+  if (R.charging) { if (state === 'dock' && now > bubbleUntil) note('CHARGING... ZZZ', 1.6); return true; }   // stays asleep
   if (state === 'punish') { if (sd.ph === 'song' || sd.ph === 'talk') { stopSong(); say(PUNISH_LINES[2], true); sd.ph = 'end'; sd.e0 = sd.t; } return true; }
   if (['startled', 'noclip', 'bump', 'pet', 'eat'].includes(state)) return false;
   if (state === 'dock') { say('FIVE MORE MINUTES', true); snd('snore'); return true; }
   if (state === 'sulk') { if (mood.offended < 0.6 || rand() < 0.5) { go('pet'); return true; } say(['DON\'T TOUCH ME', 'STILL MAD'], true); snd('hmph'); return true; }
   go('pet'); return true;
 };
+// ============================================================ bedtime: the trigger on the charging station (js/roombaoff.js)
+// Pressing the station's button sends it home (pressing it again while it's asleep wakes it up, see R.wakeUp): whatever it's saying is cut at once, the punishment song stops (and the
+// punishment ends), it drives back to its dock, goes to sleep and shows CHARGING (a filling battery on its face) until
+// Unity comes back into the room (a new visit: reloading the page or putting the headset on again). While it's charging
+// it stays put and stays quiet: no voice, beeps, theme, speech bubbles, greetings or punishments, and calls, pets,
+// claps, pushes and zombie noise don't wake it. Only the Roomba's own sound stops: TV, records, statues, films go on.
+R.muted = false; R.charging = false;
+function note(text, dur) { drawCaption(text); bubbleUntil = now + (dur || 1.8); }   // a silent bubble (no voice clip)
+R.note = note;
+R.charge = function () {
+  if (R.charging) return false;
+  R.charging = true; R.muted = true; R.charges = (R.charges || 0) + 1; log.push({ t: +now.toFixed(2), charge: 'go home' });
+  if (VOX.src) { try { VOX.src.stop(); } catch (e) { } VOX.src = null; } VOX.until = 0;
+  stopSong(); if (themeSrc) { try { themeSrc.stop(); } catch (e) { } themeSrc = null; }
+  VOX.greeted = true;
+  if (A.ctx) A.quietUntil = A.ctx.currentTime;
+  if (state === 'punish') { afterSocial(); lastPunish = now; }
+  if (state !== 'dock') go('home'); else setFace('sleep');
+  note('GOING TO CHARGE', 2.2);
+  return true;
+};
+// wake up and go back into the room: the station's button again (right away, no greeting), or a new visit (a moment
+// later, and it says hi like it does when you walk in)
+R.wakeUp = function (how) {
+  if (!R.charging) return false;
+  R.charging = false; R.muted = false; log.push({ t: +now.toFixed(2), charge: 'woke up', how: how || '' });
+  if (how === 'button') { if (state === 'dock') go('undock'); else if (state === 'home') go('wander'); }
+  else { VOX.greeted = false; if (state === 'dock') sd.wake = Math.min(sd.t + 1.5, sd.wake); else if (state === 'home') go('wander'); }
+  return true;
+};
 // voice / calls
 R.voice = { level: 0, talking: false };
 R.hear = function (kind, data) {
+  if (R.charging) return;   // asleep on the charger: calls, claps and zombie noise don't wake it
   if (kind === 'talk' || kind === 'call') {
     if (kind === 'call') log.push({ t: +now.toFixed(2), heard: 'call' });
     if (state === 'dock') { if (mood.energy > 0.5) return go('undock'); return say('FIVE MORE MINUTES', true); }
@@ -581,6 +625,17 @@ let faceKey = '', blinkAt = 2, blinkEnd = 0;
 function cell(x, y, c) { faceX.fillStyle = c; faceX.fillRect(x * 8, y * 8, 8, 8); }
 function drawFace() {
   const e = (look.tmpExpr && now < look.exprUntil) ? look.tmpExpr : look.expr;
+  if (R.charging && state === 'dock') {   // CHARGING: a battery filling up bar by bar, a little bolt, sleepy eyes above it
+    const f = Math.floor(now * 1.5) % 5, key = 'charge|' + f; if (key === faceKey) return; faceKey = key;
+    const g = '#5ce07a', w = 'rgba(200,255,210,.9)';
+    faceX.fillStyle = '#0a0c14'; faceX.fillRect(0, 0, 128, 128);
+    for (const x of [4, 5, 6]) cell(x, 4, 'rgba(160,200,255,.55)'); for (const x of [9, 10, 11]) cell(x, 4, 'rgba(160,200,255,.55)');
+    for (let x = 3; x <= 12; x++) { cell(x, 7, w); cell(x, 12, w); } for (let y = 8; y <= 11; y++) { cell(3, y, w); cell(12, y, w); }
+    cell(13, 9, w); cell(13, 10, w);
+    for (let i = 0; i < f; i++) for (let y = 8; y <= 11; y++) { cell(4 + i * 2, y, g); cell(5 + i * 2, y, g); }
+    cell(8, 8, '#ffe14a'); cell(7, 9, '#ffe14a'); cell(8, 9, '#ffe14a'); cell(7, 10, '#ffe14a'); cell(8, 10, '#ffe14a'); cell(7, 11, '#ffe14a');
+    faceT.needsUpdate = true; return;
+  }
   if (now > blinkAt) { blinkEnd = now + 0.13; blinkAt = now + 2 + rand() * 4; }
   const blink = now < blinkEnd && ['neutral', 'curious', 'happy', 'listen', 'shy', 'hungry'].includes(e);
   // pupils look toward Unity (in the Roomba's own frame)
