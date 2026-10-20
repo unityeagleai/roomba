@@ -174,7 +174,7 @@ with sync_playwright() as p:
     ev('() => { ' + ctrl_ray() + ' return RV.media.selectEnd(window.__fc, o, d); }')
     # drop it in the room: falls onto the bed / floor
     ctrl_at(0.5, 1.3, 0.2); frames(8)
-    ev('RV.phone.squeezeEnd(window.__fc)'); pg.wait_for_timeout(1200); frames(3)
+    ev('RV.phone.squeezeEnd(window.__fc)'); wait('RV.phone.state() === "rest"', 8000); frames(3)
     d = PH(); print('  dropped', d['state'], d['x'], d['y'], d['z'])
     ok(d['state'] == 'rest' and d['y'] < 0.9 and abs(d['x'] - 0.5) < 0.05, 'let go in the room: it drops onto whatever is below')
 
