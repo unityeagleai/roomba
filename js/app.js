@@ -231,9 +231,23 @@ const poseHits = [];
 })();
 const poseRay = new THREE.Raycaster(); poseRay.far = 10;
 function posePick(o, d) { poseRay.set(o, d); const h = poseRay.intersectObjects(poseHits, false)[0]; return h ? { t: h.distance, name: h.object.name } : null; }
+// Something you can pick up (the phone, the zombie) lying ON the stool / bed / beanbag sits inside that seat's invisible
+// sit-down volume, so the ray enters the volume before it reaches the thing. Pointing at it means you want the thing,
+// not to sit down: it wins when its hit is in front of the volume or inside it (a little margin around it).
+const _pb = new THREE.Box3(), _pp = new THREE.Vector3();
+function propInPose(o, d, h) {
+  const m = poseHits.find(q => q.name === h.name); if (!m) return false;
+  m.updateMatrixWorld(true); _pb.setFromObject(m).expandByScalar(0.06);
+  for (const t of [RV.phone && RV.phone.pickT ? RV.phone.pickT(o, d) : null, RV.zombie ? RV.zombie.hoverT(o, d) : null]) {
+    if (t == null) continue;
+    if (t < h.t || _pb.containsPoint(_pp.copy(d).multiplyScalar(t).add(o))) return true;
+  }
+  return false;
+}
 function poseMine(o, d, otherT) {
   const h = posePick(o, d); if (!h) return null;
   if (otherT != null && otherT < h.t) return null;
+  if (propInPose(o, d, h)) return null;
   const z = RV.zombie && RV.zombie.hoverT(o, d); if (z != null && z < h.t) return null;
   const r = resolveRay(o, d); if (r && r.roomba && r.t < h.t) return null;
   return h.name;
@@ -242,7 +256,7 @@ if (RV.media) {
   const M = RV.media, orig = { click: M.click, selectStart: M.selectStart, hoverT: M.hoverT };
   M.click = function (o, d) { const n = poseMine(o, d, orig.hoverT(o, d)); if (n) return sitOn(n); return orig.click(o, d); };
   M.selectStart = function (c, o, d) { const n = poseMine(o, d, orig.hoverT(o, d)); if (n) return sitOn(n); return orig.selectStart(c, o, d); };
-  M.hoverT = function (o, d) { const a = orig.hoverT(o, d), h = posePick(o, d); return h && (a == null || h.t < a) ? h.t : a; };
+  M.hoverT = function (o, d) { const a = orig.hoverT(o, d), h = posePick(o, d); return h && (a == null || h.t < a) && !propInPose(o, d, h) ? h.t : a; };
 }
 
 function move(dt) {

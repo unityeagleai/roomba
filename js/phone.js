@@ -66,7 +66,7 @@ scene.add(g);
 let D = null;                                              // RV.drawers, handed over by drawers.js
 const HOME = { x: 0.1, z: -0.097, ry: 0.06 };
 const BLOCK = i => (i === 2 || i === 5) && inDrawerish();
-let state = 'none', by = null, via = null, anim = null, vy = 0, landY = 0, ry = 0, grabs = 0, homeRuns = 0;
+let state = 'none', by = null, via = null, anim = null, vy = 0, landY = 0, ry = 0, grabs = 0, homeRuns = 0, fallT = 0;
 const flat = r => new Q().setFromAxisAngle(new V3(0, 1, 0), r);
 function yawOf(q) { const v = new V3(0, 0, -1).applyQuaternion(q); v.y = 0; return v.lengthSq() > 1e-6 ? Math.atan2(-v.x, -v.z) : 0; }
 function homePos() { return new V3(HOME.x, (D ? D.FLOOR_Y : 0.5) + TH / 2 + 0.0004, HOME.z); }
@@ -95,8 +95,54 @@ function dropAt(x, y, z, r) {
   if (D && D.amount() > 0.3 && Math.abs(L.y - D.FLOOR_Y) < 0.025) {   // landed on the bottom of the open drawer: it's in the drawer
     const lp = D.drawer.worldToLocal(new V3(L.x, L.y, L.z)); if (Math.abs(lp.x) < D.TRAY.w / 2 + 0.02 && lp.z < 0.02 && lp.z > -D.TRAY.d) return toDrawer();
   }
+  if (!reachable(L.x, L.y, L.z)) return toDrawer();       // somewhere you couldn't see or point at it (deep under the desk...): back in its drawer
   scene.attach(g); ry = r; landY = L.y + TH / 2 + 0.0005; g.position.x = L.x; g.position.z = L.z; if (g.position.y < landY) g.position.y = landY + 0.002;
-  vy = 0; state = 'fall'; if (D) D.setBlocked(BLOCK); return true;
+  vy = 0; state = 'fall'; fallT = 0; if (D) D.setBlocked(BLOCK); return true;
+}
+// Can you get at it where it lands? Yes if there's a clear line from just above that spot to where your hand or eyes could
+// be, standing somewhere free in the room (a grid of spots, at hand and eye height). Inside the walls only.
+const RM = RV.room || { RX: 2.6, RZ: 2.2, RH: 2.6 }, seeRay = new THREE.Raycaster();
+let lastReach = null;
+function solids() {
+  const skip = new Set(); g.traverse(o => skip.add(o)); if (RV.rig) RV.rig.traverse(o => skip.add(o));
+  const out = [];
+  scene.traverse(o => {
+    if (!o.isMesh || skip.has(o)) return;
+    for (let q = o; q; q = q.parent) if (!q.visible) return;
+    for (const m of (Array.isArray(o.material) ? o.material : [o.material])) if (!m || m.visible === false || (m.transparent && (m.opacity < 0.5 || m.depthWrite === false))) return;
+    out.push(o);
+  });
+  return out;
+}
+function pointable(o, d) {
+  const t = rayT(o, d); if (t == null) return false;
+  let all = null, zt = null; try { all = Md.hoverT(o, d); } catch (e) { } try { zt = RV.zombie ? RV.zombie.hoverT(o, d) : null; } catch (e) { }
+  return (all == null || all >= t - 1e-6) && (zt == null || zt >= t - 1e-6);
+}
+function reachable(x, y, z) {
+  if (!(Math.abs(x) < RM.RX - 0.03 && Math.abs(z) < RM.RZ - 0.03 && y > -0.05 && y < RM.RH - 0.1)) { lastReach = { why: 'outside', x, y, z }; return false; }
+  const ms = solids(), sides = new Map();
+  for (const m of ms) for (const mt of (Array.isArray(m.material) ? m.material : [m.material])) { if (!sides.has(mt)) sides.set(mt, mt.side); mt.side = THREE.DoubleSide; }
+  const p = new V3(x, y + 0.03, z), e = new V3(), dir = new V3(); let seen = 0, tried = 0;
+  // stand the phone where it would land for a moment, so the pointing check sees it there
+  const was = { parent: g.parent, pos: g.position.clone(), q: g.quaternion.clone(), state };
+  scene.attach(g); g.position.set(x, y + TH / 2 + 0.0005, z); g.quaternion.copy(flat(0)); state = 'rest'; g.updateMatrixWorld(true);
+  try {
+    for (let ex = -RM.RX + 0.35; ex < RM.RX - 0.3 && !seen; ex += 0.3) for (let ez = -RM.RZ + 0.35; ez < RM.RZ - 0.3 && !seen; ez += 0.3) {
+      if (RV.blocked && RV.blocked(ex, ez, 0.18, 'player')) continue;
+      for (const ey of [1.0, 1.5]) {
+        e.set(ex, ey, ez); dir.subVectors(e, p); const len = dir.length(); if (len > 4.5 || len < 0.05) continue; dir.divideScalar(len); tried++;
+        seeRay.set(p, dir); seeRay.far = len; seeRay.near = 0.005;
+        if (seeRay.intersectObjects(ms, false).length) continue;
+        if (pointable(e, dir.clone().negate())) { seen++; break; }   // and pointing at it from there picks the phone, not a seat or a button around it
+      }
+    }
+  } finally {
+    for (const [mt, sd] of sides) mt.side = sd;
+    state = was.state; (was.parent || scene).add(g); g.position.copy(was.pos); g.quaternion.copy(was.q); g.updateMatrixWorld(true);
+  }
+  lastReach = { why: seen ? 'ok' : 'hidden', tried, x: +x.toFixed(3), y: +y.toFixed(3), z: +z.toFixed(3) };
+  return seen > 0;
 }
 
 // ------------------------------------------------------------ holding
@@ -268,8 +314,11 @@ Md.tick = function (dt, T) {
     g.position.lerpVectors(anim.p0, anim.p1, k); g.position.y += Math.sin(k * Math.PI) * anim.arc; g.quaternion.slerpQuaternions(anim.q0, anim.q1, k);
     if (k >= 1) { const a = anim; g.position.copy(a.p1); g.quaternion.copy(a.q1); anim = null; if (a.done) a.done(); }
   } else if (state === 'fall') {
-    vy -= 9.8 * dt; g.position.y += vy * dt; g.quaternion.slerp(flat(ry), clamp(dt * 12, 0, 1));
+    vy -= 9.8 * dt; g.position.y += vy * dt; g.quaternion.slerp(flat(ry), clamp(dt * 12, 0, 1)); fallT += dt;
     if (g.position.y <= landY) { g.position.y = landY; g.quaternion.copy(flat(ry)); state = 'rest'; clack(g.position, 0.3); }
+    else if (fallT > 3) toDrawer();                                                            // never landed: back in its drawer
+  } else if (state === 'rest' && g.parent === scene) {                                          // got out of the room somehow: back in its drawer
+    const pp = g.position; if (!(Math.abs(pp.x) < RM.RX && Math.abs(pp.z) < RM.RZ && pp.y > -0.1 && pp.y < RM.RH)) toDrawer();
   }
   // the message: follows the phone; something else starting stops it
   if (live || starting) {
@@ -289,7 +338,7 @@ Md.tick = function (dt, T) {
 const api = RV.phone = {
   g, screen, hit, audio, PW, PH, TH, HOME, ready: false,
   play, stop, toggle, grab, heldBy, releaseVR, toDrawer, dropAt, placeByClick, squeezeStart, squeezeEnd, pickT, inDrawerT, rayT,
-  playing: () => live || starting, state: () => state,
+  playing: () => live || starting, state: () => state, reachable, lastReach: () => lastReach,
   _attach: drawers => { D = drawers; placeHome(); },
   _debug: () => { const p = g.getWorldPosition(new V3()); return { state, by: by === 'desk' ? 'desk' : by ? 'controller' : null, via, live, starting, plays, stops, grabs, homeRuns, lastStop,
     t: +audio.currentTime.toFixed(2), dur: audio.duration, paused: audio.paused, wired: !!src, parent: g.parent && g.parent.name, x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4),
