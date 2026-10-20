@@ -416,6 +416,8 @@ Object.assign(api, {
   DESK, MON, SCR, KB, SLOT, STOOL, CARD_H, CARD_W, CARD_REST, slopeY,
   pose: { seat: { x: STOOL.x, z: STOOL.z - 0.05 }, eye: 1.17, minEye: 0.92, settle: 4, exit: { x: -1.5, z: -0.72 }, yaw: 0, pitch: -0.38, label: 'stool' },
   ready: () => cardReady,
+  cardIn: () => cardState === 'in',                        // the keycard is in the slot (the desk drawer unlocks)
+  askForCard: () => { if (cardState === 'in') return false; nudge = 1.8; dirty = true; return true; },   // READY screen flashes >> INSERT ACCESS CARD <<
   _debug: () => ({ cardState, anim: +anim.toFixed(3), term, inp, focus, keysTyped, nudge: nudge > 0, hover: hoverKey && hoverKey.k, view: viewLines(), fx: fx && fx.kind, lines: lines.slice(), typed, queue: queue.length, visits, led: ledM.color.getHex(), glow: +glow.material.opacity.toFixed(3),
     card: { x: +card.position.x.toFixed(4), y: +card.position.y.toFixed(4), z: +card.position.z.toFixed(4) } }),
 });

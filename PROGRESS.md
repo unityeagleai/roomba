@@ -128,3 +128,19 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
   Other room audio (TV, records, statues, films) untouched. HUD hint updated (intro list left alone: it's full).
 - tools/test_roomba_charge.py (add 'quick' to start already docked).
 - [ ] NOT tried in a headset yet
+
+## The phone from the future in the locked desk drawer
+- Unity: "make a prop of this exact phone ... place it in the drawer of the desk which will only open up if we have the
+  keycard inside the computer and when I grab it or click it the audio message plays".
+- js/phone.js (loaded between desk.js and drawers.js): her 'Future phone' PNG (assets/img/future_phone.png, cropped, not
+  resized) on the front of a 7.2 x 14.7 cm rounded slab, dusty-mauve sides, camera bump on the back. Lies in the top desk
+  drawer over slots 2 + 5 (floppies are kept off them while it's inside). Grab (grip near / pointing, or trigger-hold) or
+  click = pick up + plays 'Miles from the future' (assets/audio/miles_from_the_future.mp3, 43 s, loudnorm -16 LUFS, mono)
+  from the phone (HRTF panner following it); grabbing again while it plays stops it; trigger on the holding hand / click
+  the held phone = stop / replay. Pauses TV episode, record, poster video, origin frame, voice note; any of those starting
+  stops it. Let go over the open drawer = back in; elsewhere it drops onto what's below (RV.zombie.landAt). Screen: click
+  open drawer / desk / floor to put it down. Not remembered: starts in the drawer each visit.
+- drawers.js: locked unless RV.desk.cardIn() (new in desk.js, with askForCard()): opening rattles (jiggle, knocks, latch
+  tick) and flashes >> INSERT ACCESS CARD << on the CRT; red/green LED on a brass plate right of the pull. Shutting works.
+- tools/test_phone.py; test_drawers.py now puts the card in at boot.
+- [ ] NOT tried in a headset yet

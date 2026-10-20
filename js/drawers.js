@@ -11,6 +11,11 @@
 //   floor and hops back to its spot on the desk after a minute. Screen: click a floppy to pick it up, then click the open
 //   drawer (or the desk, or the floor). Clicking the closed drawer while holding one opens it.
 // - Where the floppies are (drawer / desk) is remembered on this device (localStorage), like the zombie's spot.
+// - Locked: the drawer only opens while the PARALLEL UNIVERSE keycard is in the CHARLIE 64. Without it, trying to open it
+//   rattles it (it jiggles a few mm, wood knocks + a little latch click) and the CRT flashes >> INSERT ACCESS CARD <<. A
+//   tiny card-reader LED next to the pull is red while it's locked, green while the card is in. Shutting always works;
+//   taking the card out doesn't slam it shut, but once it's shut it stays locked. (Unity: the phone from the future lives
+//   in here, js/phone.js; it takes two slots of the right-hand column while it's inside.)
 // Hooks into RV.media (click / selectStart / selectEnd / hoverT / tick) like the light switch and the desk card; the grip is
 // a listener on the two XR controllers. Whatever is nearer along the ray wins.
 (function () {
@@ -48,6 +53,11 @@ const invis = new THREE.MeshBasicMaterial({ visible: false });
 const drawer = new THREE.Group(); drawer.name = 'deskDrawer'; drawer.position.set(DX, 0, PED.z1); scene.add(drawer);
 const front = blk(FR.w, FR.h, FR.d, wood, 0, FR.y0 + FR.h / 2, FR.d / 2, drawer); front.name = 'deskDrawerFront';
 const pull = blk(0.09, 0.014, 0.012, brass, 0, FR.y0 + FR.h * 0.62, FR.d + 0.006, drawer); pull.name = 'deskDrawerPull';
+// the lock: a little brass card-reader plate right of the pull with an LED (red = locked, green = keycard is in)
+const ledRed = new THREE.MeshBasicMaterial({ color: 0xff2a1a }), ledGreen = new THREE.MeshBasicMaterial({ color: 0x3cff6a });
+const lockPlate = blk(0.024, 0.016, 0.003, brass, FR.w / 2 - 0.045, FR.y0 + FR.h * 0.62, FR.d + 0.0015, drawer); lockPlate.name = 'deskDrawerLock';
+const lockLed = blk(0.006, 0.006, 0.003, ledRed, FR.w / 2 - 0.045, FR.y0 + FR.h * 0.62, FR.d + 0.004, drawer); lockLed.name = 'deskDrawerLockLed';
+let ledLocked = true;
 {
   const W = TRAY.w, S = TRAY.side;
   blk(W + 2 * S, TRAY.th, TRAY.d, inner, 0, TRAY.y0 + TRAY.th / 2, -TRAY.d / 2, drawer);                                   // bottom
@@ -144,7 +154,8 @@ function buzz(k, ms) { if (RV.haptic) try { RV.haptic(k, ms); } catch (e) { } }
 const flat = ry => new Q().setFromAxisAngle(new V3(0, 1, 0), ry);
 function yawOf(q) { const v = new V3(0, 0, 1).applyQuaternion(q); v.y = 0; return v.lengthSq() > 1e-6 ? Math.atan2(v.x, v.z) : 0; }
 function slotPos(i) { const s = SLOTS[i % SLOTS.length], layer = Math.floor(i / SLOTS.length); return new V3(s.x, FLOOR_Y + T / 2 + 0.0002 + layer * T, s.z); }
-function slotTaken(i, except) { return floppies.some(o => o !== except && o.slot === i && (o.state === 'drawer' || (o.state === 'fly' && o.anim && o.anim.to === 'drawer'))); }
+let blocked = null;                                          // slots something else lies on (the phone): i % SLOTS.length -> true
+function slotTaken(i, except) { if (blocked && blocked(i % SLOTS.length)) return true; return floppies.some(o => o !== except && o.slot === i && (o.state === 'drawer' || (o.state === 'fly' && o.anim && o.anim.to === 'drawer'))); }
 function freeSlot(f, prefer) {
   if (prefer != null && prefer >= 0 && !slotTaken(prefer, f)) return prefer;
   for (let i = 0; i < 24; i++) if (!slotTaken(i, f)) return i;
@@ -255,8 +266,25 @@ function release(by, h) {
 }
 
 // ------------------------------------------------------------ the drawer itself
+// the lock: the keycard has to be in the CHARLIE 64
+function locked() { const dk = RV.desk; return !!(dk && dk.cardIn && !dk.cardIn()); }
+let jig = 0, rattles = 0;
+function rattle() {
+  jig = 0.32; rattles++; buzz(0.45, 60);
+  const A = actx(); if (A) try {
+    const t = A.currentTime;
+    knock(t, 0.16, 120); knock(t + 0.085, 0.13, 105); knock(t + 0.17, 0.1, 115);
+    const o = outAt(A, SND_AT), s = A.createBufferSource(); s.buffer = noise(A);           // the latch: a short metal tick
+    const f = A.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 4200; f.Q.value = 6;
+    const g = A.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    s.connect(f); f.connect(g); g.connect(o); s.start(t, 0.1, 0.07);
+    quiet(A, 0.4);
+  } catch (e) { }
+  try { if (RV.desk && RV.desk.askForCard) RV.desk.askForCard(); } catch (e) { }
+}
 function setOpen(want) {
   want = want ? 1 : 0; if (want === openTarget) return true;
+  if (want && locked()) { rattle(); return true; }
   openTarget = want; toggles++; slide(!!want); buzz(0.25, 40); return true;
 }
 function toggle() { return setOpen(!openTarget); }
@@ -271,6 +299,10 @@ function pick(o, d, holding) {
   scene.updateMatrixWorld();
   const hs = ray.intersectObjects(list, false); if (!hs.length) return null;
   let h = hs[0];
+  if (!holding && h.object.userData.kind === 'front' && RV.phone && RV.phone.inDrawerT) {   // the phone lying in the open drawer, just behind the front edge: you mean the phone
+    const pt = RV.phone.inDrawerT(o, d);
+    if (pt != null && pt - h.distance < 0.3 && !hs.some(x => x.object.userData.kind === 'floppy' && x.distance < pt)) return null;
+  }
   if (h.object.userData.kind === 'front' && openE > 0.85) {   // looking down into the open drawer over its front: you mean the floppy in it
     const fh = hs.find(x => x.object.userData.kind === 'floppy' && x.distance - h.distance < 0.3);
     if (fh) h = fh;
@@ -288,6 +320,7 @@ function kbLetGo() {          // a click on the drawer is a click away from the 
 Md.click = function (o, d) { return click2(o, d); };
 function click2(o, d) {
   const held = heldBy('desk');
+  if (!held && RV.phone && RV.phone.heldBy && RV.phone.heldBy('desk')) return orig.click(o, d);   // the phone in your hand decides where it goes
   if (held) {
     const p = mine(o, d, true);
     if (p && p.kind === 'front' && openTarget === 0) return toggle();          // the shut drawer: open it, keep holding
@@ -303,6 +336,7 @@ function click2(o, d) {
 // VR trigger: on the drawer = open/shut, on a floppy = hold it while the trigger is down
 Md.selectStart = function (c, o, d) {
   if (heldBy(c)) return true;
+  if (RV.phone && RV.phone.heldBy && RV.phone.heldBy(c)) return orig.selectStart(c, o, d);       // trigger on the hand holding the phone: the phone's
   const p = mine(o, d, false);
   if (p && p.t < 6) { if (p.kind === 'front') return toggle(); if (p.kind === 'floppy') return grab(p.f, c, 'select'); }
   return orig.selectStart(c, o, d);
@@ -326,6 +360,7 @@ function nearestTo(c) {
 }
 function squeezeStart(c) {
   if (heldBy(c)) return false;
+  if (RV.phone && RV.phone.heldBy && RV.phone.heldBy(c)) return false;     // that hand just took the phone (phone.js listens first)
   const n = nearestTo(c);
   if (n === 'pull') return toggle();
   if (n) return grab(n, c, 'squeeze');
@@ -355,6 +390,9 @@ Md.tick = function (dt, Tm) {
   // the drawer slides (0.4 s), and you bump into it while it's out
   if (openU !== openTarget) { openU = openTarget ? Math.min(1, openU + dt / 0.4) : Math.max(0, openU - dt / 0.4); }
   openE = ease(openU); drawer.position.z = PED.z1 + openE * PULL; obst.z1 = PED.z1 + FR.d + openE * PULL;
+  if (jig > 0) { jig = Math.max(0, jig - dt); drawer.position.z += Math.sin(jig * 60) * 0.003 * (jig / 0.32); drawer.position.x = DX + Math.sin(jig * 47) * 0.0012 * (jig / 0.32); }
+  else if (drawer.position.x !== DX) drawer.position.x = DX;
+  const lk = locked(); if (lk !== ledLocked) { ledLocked = lk; lockLed.material = lk ? ledRed : ledGreen; }
   const now = performance.now() / 1000;
   for (const f of floppies) {
     const g = f.g;
@@ -410,6 +448,9 @@ const api = RV.drawers = {
   open: () => setOpen(true), close: () => setOpen(false), toggle, isOpen: () => openTarget === 1, amount: () => openE,
   pick, grab, release, heldBy, toDrawer, toDesk, toHome, squeezeStart, squeezeEnd, reset, deskFree,
   grabs: 0, stored: 0, toggles: () => toggles,
-  _debug: () => ({ open: +openE.toFixed(3), target: openTarget, floppies: floppies.map(f => { const p = f.g.getWorldPosition(new V3()); return { id: f.id, state: f.state, slot: f.slot, parent: f.g.parent && f.g.parent.name, x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) }; }) }),
+  locked, rattles: () => rattles, lockLed, inDrawerZone, overDesk,
+  setBlocked: fn => { blocked = fn || null; for (const f of floppies) if (f.state === 'drawer' && slotTaken(f.slot, f)) toDrawer(f); },
+  _debug: () => ({ open: +openE.toFixed(3), target: openTarget, locked: locked(), rattles, led: ledLocked ? 'red' : 'green', floppies: floppies.map(f => { const p = f.g.getWorldPosition(new V3()); return { id: f.id, state: f.state, slot: f.slot, parent: f.g.parent && f.g.parent.name, x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) }; }) }),
 };
+if (RV.phone && RV.phone._attach) try { RV.phone._attach(api); } catch (e) { console.warn('phone in the drawer', e); }
 })();

@@ -24,6 +24,8 @@ with sync_playwright() as p:
         pg.wait_for_timeout(2500); pg.click('#bFlat'); pg.wait_for_timeout(1200)
         pg.evaluate('RV.roomba.place(1.6, 1.3)')
         pg.wait_for_function('RV.desk && RV.desk.ready() && RV.drawers', timeout=20000)
+        pg.evaluate('RV.desk.cardIn() || RV.desk.insert()')          # the drawer is locked without the keycard in the CHARLIE 64
+        pg.wait_for_function('RV.desk.cardIn()', timeout=45000)
     boot('drawers1')
     ev = lambda js, *a: pg.evaluate(js, *a)
     def wait(js, t=20000):
@@ -185,6 +187,7 @@ with sync_playwright() as p:
     ev('localStorage.removeItem("rv.floppies.v1")')
 
     # the rest of the desk still works: card -> CRT
+    ev('RV.desk.cardIn() && RV.desk.eject()'); wait('RV.desk._debug().cardState === "rest"')     # (boot put it in to unlock the drawer)
     look(-1.55, -0.6, -1.6, 0.74, -1.55)
     ev('''() => { const o = RV.camera.getWorldPosition(new THREE.Vector3()), t = RV.desk.card.getWorldPosition(new THREE.Vector3()); RV.media.click(o, t.sub(o).normalize()); }''')
     wait('RV.desk._debug().cardState === "in"')
