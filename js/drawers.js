@@ -154,8 +154,9 @@ function buzz(k, ms) { if (RV.haptic) try { RV.haptic(k, ms); } catch (e) { } }
 const flat = ry => new Q().setFromAxisAngle(new V3(0, 1, 0), ry);
 function yawOf(q) { const v = new V3(0, 0, 1).applyQuaternion(q); v.y = 0; return v.lengthSq() > 1e-6 ? Math.atan2(v.x, v.z) : 0; }
 function slotPos(i) { const s = SLOTS[i % SLOTS.length], layer = Math.floor(i / SLOTS.length); return new V3(s.x, FLOOR_Y + T / 2 + 0.0002 + layer * T, s.z); }
-let blocked = null;                                          // slots something else lies on (the phone): i % SLOTS.length -> true
-function slotTaken(i, except) { if (blocked && blocked(i % SLOTS.length)) return true; return floppies.some(o => o !== except && o.slot === i && (o.state === 'drawer' || (o.state === 'fly' && o.anim && o.anim.to === 'drawer'))); }
+const blockers = new Map();                                  // slots something else lies on (the phone, the letter): key -> (i % SLOTS.length -> true)
+function blocked(i) { for (const fn of blockers.values()) if (fn(i)) return true; return false; }
+function slotTaken(i, except) { if (blocked(i % SLOTS.length)) return true; return floppies.some(o => o !== except && o.slot === i && (o.state === 'drawer' || (o.state === 'fly' && o.anim && o.anim.to === 'drawer'))); }
 function freeSlot(f, prefer) {
   if (prefer != null && prefer >= 0 && !slotTaken(prefer, f)) return prefer;
   for (let i = 0; i < 24; i++) if (!slotTaken(i, f)) return i;
@@ -290,8 +291,14 @@ function setOpen(want) {
 function toggle() { return setOpen(!openTarget); }
 
 // ------------------------------------------------------------ picking
+const props = () => [RV.phone, RV.letter].filter(Boolean);           // the things from the future that live in this drawer (phone.js, letter.js)
+const propHeld = h => props().some(x => x.heldBy && x.heldBy(h));
 const ray = new THREE.Raycaster(); ray.far = 8;
 function pickable(f) { return f.state === 'desk' || f.state === 'floor' || (f.state === 'drawer' && openE > 0.85); }
+function aimY(o, d) {                                        // the height (drawer frame) where the ray crosses the face of the drawer front
+  const lo = drawer.worldToLocal(o.clone()), ld = drawer.worldToLocal(o.clone().add(d)).sub(lo);
+  return Math.abs(ld.z) < 1e-6 ? Infinity : lo.y + ld.y * (FR.d - lo.z) / ld.z;
+}
 function pick(o, d, holding) {
   ray.set(o, d);
   const list = [frontHit]; if (holding) { if (openE > 0.5) list.push(inHit); list.push(deskHit); }
@@ -299,11 +306,12 @@ function pick(o, d, holding) {
   scene.updateMatrixWorld();
   const hs = ray.intersectObjects(list, false); if (!hs.length) return null;
   let h = hs[0];
-  if (!holding && h.object.userData.kind === 'front' && RV.phone && RV.phone.inDrawerT) {   // the phone lying in the open drawer, just behind the front edge: you mean the phone
-    const pt = RV.phone.inDrawerT(o, d);
-    if (pt != null && pt - h.distance < 0.3 && !hs.some(x => x.object.userData.kind === 'floppy' && x.distance < pt)) return null;
+  const nearTop = h.object.userData.kind === 'front' && aimY(o, d) > FR.y0 + FR.h - 0.05;   // aimed over the top edge of the front, not at the pull
+  if (!holding && nearTop) for (const x of props()) if (x.inDrawerT) {   // the phone / letter lying in the open drawer, just behind the front edge: you mean that
+    const pt = x.inDrawerT(o, d);
+    if (pt != null && pt - h.distance < 0.3 && !hs.some(y => y.object.userData.kind === 'floppy' && y.distance < pt)) return null;
   }
-  if (h.object.userData.kind === 'front' && openE > 0.85) {   // looking down into the open drawer over its front: you mean the floppy in it
+  if (nearTop && openE > 0.85) {   // looking down into the open drawer over its front (not at the pull): you mean the floppy in it
     const fh = hs.find(x => x.object.userData.kind === 'floppy' && x.distance - h.distance < 0.3);
     if (fh) h = fh;
   }
@@ -320,7 +328,7 @@ function kbLetGo() {          // a click on the drawer is a click away from the 
 Md.click = function (o, d) { return click2(o, d); };
 function click2(o, d) {
   const held = heldBy('desk');
-  if (!held && RV.phone && RV.phone.heldBy && RV.phone.heldBy('desk')) return orig.click(o, d);   // the phone in your hand decides where it goes
+  if (!held && propHeld('desk')) return orig.click(o, d);   // the phone / letter in your hand decides where it goes
   if (held) {
     const p = mine(o, d, true);
     if (p && p.kind === 'front' && openTarget === 0) return toggle();          // the shut drawer: open it, keep holding
@@ -336,7 +344,7 @@ function click2(o, d) {
 // VR trigger: on the drawer = open/shut, on a floppy = hold it while the trigger is down
 Md.selectStart = function (c, o, d) {
   if (heldBy(c)) return true;
-  if (RV.phone && RV.phone.heldBy && RV.phone.heldBy(c)) return orig.selectStart(c, o, d);       // trigger on the hand holding the phone: the phone's
+  if (propHeld(c)) return orig.selectStart(c, o, d);       // trigger on the hand holding the phone / letter: theirs
   const p = mine(o, d, false);
   if (p && p.t < 6) { if (p.kind === 'front') return toggle(); if (p.kind === 'floppy') return grab(p.f, c, 'select'); }
   return orig.selectStart(c, o, d);
@@ -360,7 +368,7 @@ function nearestTo(c) {
 }
 function squeezeStart(c) {
   if (heldBy(c)) return false;
-  if (RV.phone && RV.phone.heldBy && RV.phone.heldBy(c)) return false;     // that hand just took the phone (phone.js listens first)
+  if (propHeld(c)) return false;     // that hand just took the phone / letter (phone.js, letter.js listen first)
   const n = nearestTo(c);
   if (n === 'pull') return toggle();
   if (n) return grab(n, c, 'squeeze');
@@ -449,8 +457,9 @@ const api = RV.drawers = {
   pick, grab, release, heldBy, toDrawer, toDesk, toHome, squeezeStart, squeezeEnd, reset, deskFree,
   grabs: 0, stored: 0, toggles: () => toggles,
   locked, rattles: () => rattles, lockLed, inDrawerZone, overDesk,
-  setBlocked: fn => { blocked = fn || null; for (const f of floppies) if (f.state === 'drawer' && slotTaken(f.slot, f)) toDrawer(f); },
+  setBlocked: (fn, key) => { if (fn) blockers.set(key || 'phone', fn); else blockers.delete(key || 'phone'); for (const f of floppies) if (f.state === 'drawer' && slotTaken(f.slot, f)) toDrawer(f); },
   _debug: () => ({ open: +openE.toFixed(3), target: openTarget, locked: locked(), rattles, led: ledLocked ? 'red' : 'green', floppies: floppies.map(f => { const p = f.g.getWorldPosition(new V3()); return { id: f.id, state: f.state, slot: f.slot, parent: f.g.parent && f.g.parent.name, x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) }; }) }),
 };
 if (RV.phone && RV.phone._attach) try { RV.phone._attach(api); } catch (e) { console.warn('phone in the drawer', e); }
+if (RV.letter && RV.letter._attach) try { RV.letter._attach(api); } catch (e) { console.warn('letter in the drawer', e); }
 })();

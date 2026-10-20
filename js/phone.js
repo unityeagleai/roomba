@@ -195,11 +195,12 @@ function quietOthers() {
   try { const v = RV.vposter && RV.vposter._debug; if (v) { const s = v.state(); if (s.live || s.starting) v.stop('phone'); } } catch (e) { }
   try { const o = RV.originFrame && RV.originFrame._debug; if (o) { const s = o.state(); if (s.live || s.starting) o.pause('phone'); } } catch (e) { }
   try { const n = RV.voiceNote && RV.voiceNote._debug; if (n) { const s = n.state(); if (s.live || s.starting) n.pause('phone'); } } catch (e) { }
+  try { if (RV.letter && RV.letter.playing()) RV.letter.stop('phone'); } catch (e) { }
 }
 function othersPlaying() {
   const d = Md._debug, v = RV.vposter && RV.vposter._debug && RV.vposter._debug.state(), o = RV.originFrame && RV.originFrame._debug && RV.originFrame._debug.state(),
     n = RV.voiceNote && RV.voiceNote._debug && RV.voiceNote._debug.state();
-  return !!((d && ((d.playing && d.playing.ep && d.video && !d.video.paused) || (d.rp && d.rp.on))) || (v && (v.live || v.starting)) || (o && (o.live || o.starting)) || (n && (n.live || n.starting)));
+  return !!((d && ((d.playing && d.playing.ep && d.video && !d.video.paused) || (d.rp && d.rp.on))) || (v && (v.live || v.starting)) || (o && (o.live || o.starting)) || (n && (n.live || n.starting)) || !!(RV.letter && RV.letter.playing && RV.letter.playing()));
 }
 function play() {
   if (RV.ensureAudio) try { RV.ensureAudio(); } catch (e) { }
@@ -281,8 +282,13 @@ Md.playing = function () { return (orig.playing ? orig.playing() : false) || liv
 const NEAR = 0.12;
 function squeezeStart(c) {
   if (heldBy(c)) return false;
+  const L = RV.letter; if (L && L.heldBy && L.heldBy(c)) return false;          // that hand holds the letter
   c.updateWorldMatrix(true, false); const hp = c.getWorldPosition(new V3());
-  if ((pickable() || (state === 'held' && by !== c && by !== 'desk')) && g.getWorldPosition(new V3()).distanceTo(hp) < NEAR) return grab(c, 'squeeze');
+  const near = g.getWorldPosition(new V3()).distanceTo(hp);
+  if ((pickable() || (state === 'held' && by !== c && by !== 'desk')) && near < NEAR) {
+    if (L && L.g && L.pickable && L.pickable() && L.g.getWorldPosition(new V3()).distanceTo(hp) < near) return false;   // the letter is nearer your hand: letter.js takes that
+    return grab(c, 'squeeze');
+  }
   const q = c.getWorldQuaternion(new Q()), d = new V3(0, 0, -1).applyQuaternion(q);
   const t = pickT(hp, d); if (t == null || t > 6) return false;
   const all = Md.hoverT(hp, d); if (all != null && all < t - 1e-6) return false;

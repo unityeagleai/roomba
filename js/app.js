@@ -231,14 +231,14 @@ const poseHits = [];
 })();
 const poseRay = new THREE.Raycaster(); poseRay.far = 10;
 function posePick(o, d) { poseRay.set(o, d); const h = poseRay.intersectObjects(poseHits, false)[0]; return h ? { t: h.distance, name: h.object.name } : null; }
-// Something you can pick up (the phone, the zombie) lying ON the stool / bed / beanbag sits inside that seat's invisible
+// Something you can pick up (the phone, the letter, the zombie) lying ON the stool / bed / beanbag sits inside that seat's invisible
 // sit-down volume, so the ray enters the volume before it reaches the thing. Pointing at it means you want the thing,
 // not to sit down: it wins when its hit is in front of the volume or inside it (a little margin around it).
 const _pb = new THREE.Box3(), _pp = new THREE.Vector3();
 function propInPose(o, d, h) {
   const m = poseHits.find(q => q.name === h.name); if (!m) return false;
   m.updateMatrixWorld(true); _pb.setFromObject(m).expandByScalar(0.06);
-  for (const t of [RV.phone && RV.phone.pickT ? RV.phone.pickT(o, d) : null, RV.zombie ? RV.zombie.hoverT(o, d) : null]) {
+  for (const t of [RV.phone && RV.phone.pickT ? RV.phone.pickT(o, d) : null, RV.letter && RV.letter.pickT ? RV.letter.pickT(o, d) : null, RV.zombie ? RV.zombie.hoverT(o, d) : null]) {
     if (t == null) continue;
     if (t < h.t || _pb.containsPoint(_pp.copy(d).multiplyScalar(t).add(o))) return true;
   }
