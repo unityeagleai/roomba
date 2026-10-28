@@ -59,7 +59,7 @@ with sync_playwright() as p:
         hud = lambda: ev('''(() => { const h = document.getElementById('hud'), t = document.getElementById('hudText');
           return { gone: h.classList.contains('gone'), min: h.classList.contains('min'), textShown: getComputedStyle(t).display !== 'none' && !h.classList.contains('gone'),
                    text: t.textContent, btn: document.getElementById('bHelp').textContent, rect: t.getBoundingClientRect().toJSON(),
-                   mb: getComputedStyle(document.getElementById('mbtns')).display, rec: document.getElementById('bRec').getBoundingClientRect().toJSON(), log: RV.helpLog || [] }; })()''')
+                   mb: getComputedStyle(document.getElementById('mbtns')).display, log: RV.helpLog || [] }; })()''')
         h0 = hud(); r['checks']['in_room_start'] = h0
         pg.screenshot(path=f'{OUT}/{name}_2_room.png')
         if opts.get('has_touch'):
