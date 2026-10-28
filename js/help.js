@@ -13,7 +13,7 @@ const AUTO_HIDE_S = 7;
 let min = false, timer = null, userChose = false;
 
 const TOUCH_HUD = 'drag = look around · tap the floor = crumb · tap the Roomba = boop · tap the red button on its charging station = Roomba to bed / wake up<br>' +
-  'tap a cartridge, then the console = play · BIG SCREEN on the TV = wall behind you · tap the red record player<br>' +
+  'tap a cartridge, then the console = play · BIG SCREEN on the TV = wall behind you · tap an album cover<br>' +
   'walking needs a keyboard or a VR headset';
 const TOUCH_INTRO = 'On a phone or tablet: drag to look around, tap the floor, the Roomba and things in the room. Walking needs a keyboard or a VR headset, so on a phone you look and tap from where you stand. Tap HELP in the corner to see this again.';
 

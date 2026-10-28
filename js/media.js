@@ -358,7 +358,7 @@ const cw = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.016, 10), S
 const rest = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.02, 6), SILVER); rest.position.set(0.125, PH + 0.01, 0.07); PL.add(rest);
 const ARM_PARK = 0.08, ARM_OUT = -0.6, ARM_IN = -0.88;   // radians about y (0 = straight to the front)
 armPivot.rotation.y = ARM_PARK;
-const plHit = hitBox(0.42, 0.26, 0.4, 0, 0.1, 0.0, { record: true }, PL);
+// The deck is scenery; the sleeves below are the record selectors.
 // the sleeve propped against the wall, the hairbrush microphone, a sticky note, fairy lights, the poster
 const SLEEVE = { x: RX - 0.02, z: -0.98 };
 const slvC = canvas(512, 512), slvX = slvC.getContext('2d'), slvT = tex(slvC);
@@ -377,6 +377,19 @@ const slv = new THREE.Group(); slv.position.set(SLEEVE.x - 0.02, CAB.top, SLEEVE
 const slvTilt = new THREE.Group(); slvTilt.rotation.x = -0.16; slv.add(slvTilt);
 const slvFront = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.18), new THREE.MeshPhongMaterial({ map: slvT, shininess: 30 })); slvFront.position.set(0, 0.09, 0.002); slvTilt.add(slvFront);
 const slvBack = new THREE.Mesh(G.box, phong({ color: 0xe8dcc0 })); slvBack.scale.set(0.18, 0.18, 0.003); slvBack.position.set(0, 0.09, 0); slvTilt.add(slvBack);
+// Album definitions keep the cover hit targets and their audio together.
+const albums = {
+  xanadu: { title: 'Xanadu', audio: 'assets/audio/xanadu_story.m4a' },
+  littleRoom: { title: 'Little Room for You', audio: 'assets/audio/little_room_for_you.mp3' }
+};
+const xanaduHit = hitBox(0.18, 0.18, 0.018, 0, 0.09, 0.005, { album: 'xanadu' }, slvTilt);
+// A second sleeve rests on the floor beside the cabinet, leaning against the wall.
+const littleSleeve = new THREE.Group(); littleSleeve.position.set(RX - 0.04, 0.002, -0.72); littleSleeve.rotation.y = -Math.PI / 2; scene.add(littleSleeve);
+const littleTilt = new THREE.Group(); littleTilt.rotation.x = -0.16; littleSleeve.add(littleTilt);
+const littleTexture = new THREE.TextureLoader().load('assets/img/little_room_for_you.jpg'); littleTexture.encoding = THREE.sRGBEncoding; littleTexture.anisotropy = 4;
+const littleFront = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22), new THREE.MeshPhongMaterial({ map: littleTexture, shininess: 30 })); littleFront.position.set(0, 0.11, 0.002); littleTilt.add(littleFront);
+const littleBack = new THREE.Mesh(G.box, phong({ color: 0xe8dcc0 })); littleBack.scale.set(0.22, 0.22, 0.003); littleBack.position.set(0, 0.11, 0); littleTilt.add(littleBack);
+const littleHit = hitBox(0.22, 0.22, 0.018, 0, 0.11, 0.005, { album: 'littleRoom' }, littleTilt);
 // hairbrush (it was her microphone)
 const hb = new THREE.Group(); hb.position.set(RX - 0.14, CAB.top + 0.012, -0.98); hb.rotation.y = 0.7; scene.add(hb);
 const hbH = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.011, 0.12, 10), phong({ color: 0xff7ad6, shininess: 60 })); hbH.rotation.z = Math.PI / 2; hbH.position.x = -0.06; hb.add(hbH);
@@ -409,7 +422,7 @@ const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.5), glowM); glow.pos
 
 // ---------------------------------------------------------------- the record's sound: Unity's own recording (the 0:00.3-4:11.3 clip), positional from the deck
 const recAudio = document.createElement('audio');
-recAudio.src = 'assets/audio/xanadu_story.m4a'; recAudio.preload = 'auto'; recAudio.crossOrigin = 'anonymous';
+recAudio.preload = 'none'; recAudio.crossOrigin = 'anonymous';
 recAudio.style.display = 'none'; document.body.appendChild(recAudio);
 let rSrc = null, rGain = null, rPan = null;
 function wireRecord() {
@@ -425,21 +438,35 @@ function wireRecord() {
 }
 const RP_POS = new V3(); PL.getWorldPosition(RP_POS); RP_POS.y += 0.08;
 function recordGainAt(d) { return clamp(1.15 / (1 + Math.max(0, d - 0.8) * 0.6), 0.22, 1.0); }
-function startRecord() {
-  if (rp.on) return;
-  if (playing.ep && !video.paused) video.pause();   // starting the record pauses an episode
+let selectedAlbum = null, recordRequest = 0;
+function startRecord(id) {
+  id = id || 'xanadu';
+  const album = albums[id]; if (!album) return;
+  if (rp.on) stopRecord('switch');
+  if (playing.ep && !video.paused) video.pause();
   wireRecord();
+  selectedAlbum = id;
+  recAudio.src = album.audio;
   rp.on = true; rp.armT = 0; rp.phase = 'cue';
-  try { recAudio.currentTime = 0; } catch (e) { }
-  const pr = recAudio.play(); if (pr && pr.catch) pr.catch(err => { console.warn('record play', err && err.name); rp.on = false; rp.phase = 'park'; });
+  const request = ++recordRequest;
+  const pr = recAudio.play();
+  if (pr && pr.catch) pr.catch(err => {
+    if (request !== recordRequest) return;
+    console.warn('record play', err && err.name);
+    rp.on = false; rp.phase = 'park'; pwr.material.color.setHex(0x3a0a0a); syncHtml();
+  });
   pwr.material.color.setHex(0xff3a2a); click(); syncHtml();
 }
 function stopRecord(why) {
   if (!rp.on) return;
-  rp.on = false; rp.phase = 'park'; recAudio.pause(); pwr.material.color.setHex(0x3a0a0a); if (why !== 'episode') click(); syncHtml();
+  ++recordRequest; rp.on = false; rp.phase = 'park'; recAudio.pause();
+  pwr.material.color.setHex(0x3a0a0a); if (why !== 'episode' && why !== 'switch') click(); syncHtml();
 }
 recAudio.addEventListener('ended', () => { rp.on = false; rp.phase = 'park'; pwr.material.color.setHex(0x3a0a0a); syncHtml(); });
-function toggleRecord() { if (rp.on) stopRecord('user'); else startRecord(); }
+function toggleRecord(id) {
+  id = id || 'xanadu';
+  if (rp.on && selectedAlbum === id) stopRecord('user'); else startRecord(id);
+}
 
 // ================================================================ little sounds (WebAudio, tiny)
 function blip(f0, f1, dur, type, vol, at) {
@@ -514,7 +541,7 @@ function useHit(h, by) {
   if (h.btn === 'big') { openBig('wall'); click(); return true; }
   if (h.btn === 'back') { closeBig(); click(); return true; }
   if (h.btn === 'pause') { togglePause(); click(); return true; }
-  if (h.record) { toggleRecord(); return true; }
+  if (h.album) { toggleRecord(h.album); return true; }
   if (h.screen) { if (video.paused && playing.ep) togglePause(); else openBig('wall'); click(); return true; }
   if (h.cart) { grab(h.cart, by); return true; }
   if (h.console) { if (inserted) { const c = inserted; ejectCart(); grab(c, by); } else { chirpNo(); } return true; }
@@ -542,7 +569,7 @@ function click2(o, d) {
     if (h && h.cart && h.cart.state === 'shelf') { holds.delete('desk'); sendHome(held, 'quick'); grab(h.cart, 'desk'); return true; }
     const f = floorOf(o, d);
     if (h && (h.console || h.screen)) return release('desk', h);
-    if (h && h.record) { toggleRecord(); return true; }
+    if (h && h.album) { toggleRecord(h.album); return true; }
     if (f && (!h || h.t > f.t)) return release('desk', { floorHit: f });
     if (h && h.point && nearShelf(h.point)) { holds.delete('desk'); sendHome(held, 'quick'); return true; }
     return release('desk', f ? { floorHit: f } : null);
@@ -623,14 +650,12 @@ function tick(dt, T) {
 // ================================================================ desktop buttons (HTML)
 const $ = id => document.getElementById(id);
 function syncHtml() {
-  const b = $('bBig'), r = $('bRec'); if (!b) return;
+  const b = $('bBig'); if (!b) return;
   b.classList.toggle('gone', !playing.ep || renderer.xr.isPresenting);
   b.textContent = bigOn ? 'BACK TO TV' : 'FULL SCREEN';
-  if (r) r.textContent = rp.on ? 'STOP RECORD' : 'PLAY RECORD';
 }
 setTimeout(() => {
   const b = $('bBig'); if (b) b.addEventListener('click', e => { e.stopPropagation(); if (bigOn) closeBig(); else openBig('view'); });
-  const r = $('bRec'); if (r) r.addEventListener('click', e => { e.stopPropagation(); if (R.audio && !R.audio.ctx && RV.ensureAudio) RV.ensureAudio(); toggleRecord(); });
   syncHtml();
 }, 0);
 addEventListener('keydown', e => { if (e.code === 'Escape' && bigOn) closeBig(); if (e.code === 'KeyF' && playing.ep) { if (bigOn) closeBig(); else openBig('view'); } });
@@ -638,11 +663,8 @@ addEventListener('resize', () => { if (bigOn && bigMode === 'view' && !renderer.
 renderer.xr.addEventListener('sessionstart', () => { if (bigOn) { closeBig(); openBig('wall'); } syncHtml(); });
 renderer.xr.addEventListener('sessionend', () => { if (bigOn) { const m = bigMode; closeBig(); openBig(m); } for (const [k, c] of holds) if (k !== 'desk') { holds.delete(k); sendHome(c, 'quick'); } syncHtml(); });
 
-// unlock both media elements inside the first real tap (Quest browser sound rules)
-function unlock() {
-  wireRecord(); wireVideo();
-  for (const el of [recAudio]) { const was = el.muted; el.muted = true; const p = el.play(); if (p && p.then) p.then(() => { if (!rp.on) el.pause(); el.muted = was; }).catch(() => { el.muted = was; }); }
-}
+// Set up audio routing on a gesture without starting either media element.
+function unlock() { wireRecord(); wireVideo(); }
 
 // ================================================================ merge the static furniture (fewer draw calls on the Quest)
 (function merge() {
@@ -668,5 +690,5 @@ function unlock() {
 if (document.fonts && document.fonts.load) document.fonts.load('20px "Press Start 2P"').then(() => fontRedraws.forEach(f => f())).catch(() => { });
 
 RV.media = { tick, selectStart, selectEnd, click: click2, hoverT, floorCart, ride, unride, unlock, carts, playing: () => (!!playing.ep && !video.paused) || rp.on,
-  _debug: { rPan: () => rPan, vPan: () => vPan, bigBtn, backBtn, plHit, playing, video, recAudio, rp, carts, insert, ejectCart, grab, release, openBig, closeBig, cue, big, WALL, bigMode: () => bigMode, screenAngle, toggleRecord, startRecord, stopRecord, holds, pick, sendHome, dropCart, bigOn: () => bigOn, inserted: () => inserted, poster, PL, RP_POS } };
+  _debug: { rPan: () => rPan, vPan: () => vPan, bigBtn, backBtn, xanaduHit, littleHit, albums, selectedAlbum: () => selectedAlbum, playing, video, recAudio, rp, carts, insert, ejectCart, grab, release, openBig, closeBig, cue, big, WALL, bigMode: () => bigMode, screenAngle, toggleRecord, startRecord, stopRecord, holds, pick, sendHome, dropCart, bigOn: () => bigOn, inserted: () => inserted, poster, PL, RP_POS } };
 })();

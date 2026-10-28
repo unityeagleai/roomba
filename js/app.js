@@ -66,7 +66,7 @@ const ctrls = [0, 1].map(i => {
     ensureAudio(); const r = rayFrom(c); if (RV.media) RV.media.unlock();
     // the zombie plush, when it's the nearest thing on the ray: a tap is the scare, holding the trigger / a pinch picks it up
     if (RV.zombie && RV.zombie.selectStart(c, r.o, r.d, RV.media ? RV.media.hoverT(r.o, r.d) : null)) { c.userData.zsel = true; return; }
-    if (RV.media && RV.media.selectStart(c, r.o, r.d)) return;   // cartridges, TV buttons, record player
+    if (RV.media && RV.media.selectStart(c, r.o, r.d)) return;   // cartridges, TV buttons, album covers
     pointAction(c);
   });
   c.addEventListener('selectend', () => {
