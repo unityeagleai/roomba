@@ -81,16 +81,23 @@ with sync_playwright() as p:
     res['checks']['vr_trigger']['ep_after'] = ev('__rv.media().playing.ep && String(__rv.media().playing.ep.number)')
     res['checks']['vr_trigger']['playing'] = ev('!__rv.media().video.paused')
 
-    # ---- record player: real click on it, check the clip plays, positional panner at the deck, then stop with the HTML button
+    # ---- album sleeves: real desktop clicks, then the shared VR select path
     ev('__rv.setPlayer(1.2, -0.6, 0)'); W(150)
-    pl = wpos('__rv.media().plHit')
-    click_world(*pl); W(3000)
-    res['checks']['record'] = ev('''(() => { const d = __rv.media(), a = d.recAudio, pn = d.rPan(); return { on: d.rp.on, paused: a.paused, t: +a.currentTime.toFixed(2), dur: +a.duration.toFixed(2),
-        panner: !!pn, model: pn && pn.panningModel, pannerAt: pn && [pn.positionX.value, pn.positionY.value, pn.positionZ.value].map(v => +v.toFixed(2)), deck: [d.RP_POS.x, d.RP_POS.y, d.RP_POS.z].map(v => +v.toFixed(2)),
-        episodePausedByRecord: d.video.paused, btn: document.getElementById('bRec').textContent }; })()''')
+    xan = wpos('__rv.media().xanaduHit')
+    little = wpos('__rv.media().littleHit')
+    click_world(*xan); W(1000)
+    first = ev("({album: __rv.media().selectedAlbum(), on: __rv.media().rp.on, paused: __rv.media().recAudio.paused, src: __rv.media().recAudio.getAttribute('src')})")
+    click_world(*little); W(1000)
+    second = ev("({album: __rv.media().selectedAlbum(), on: __rv.media().rp.on, paused: __rv.media().recAudio.paused, src: __rv.media().recAudio.getAttribute('src')})")
+    click_world(*little); W(300)
+    stopped = ev("({on: __rv.media().rp.on, paused: __rv.media().recAudio.paused})")
+    vr = ev('''(() => { const M = __rv.media2(), d = __rv.media(), c = new THREE.Object3D();
+        const o = new THREE.Vector3(); RV.camera.getWorldPosition(o);
+        const target = new THREE.Vector3(); d.xanaduHit.getWorldPosition(target);
+        const hit = M.selectStart(c, o, target.sub(o).normalize());
+        return {hit, album: d.selectedAlbum(), on: d.rp.on}; })()''')
+    res['checks']['record'] = {'xanadu': first, 'little_room': second, 'toggle': stopped, 'vr_select': vr}
     pg.screenshot(path=f'{OUT}/05_record.png')
-    pg.click('#bRec'); W(400)
-    res['checks']['record_stop'] = ev('({ on: __rv.media().rp.on, paused: __rv.media().recAudio.paused, btn: document.getElementById("bRec").textContent })')
 
     # ---- the Roomba still behaves
     ev('__rv.go("wander")'); W(300)
