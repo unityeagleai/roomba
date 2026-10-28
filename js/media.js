@@ -383,8 +383,9 @@ const albums = {
   littleRoom: { title: 'Little Room for You', audio: 'assets/audio/little_room_for_you.mp3' }
 };
 const xanaduHit = hitBox(0.18, 0.18, 0.018, 0, 0.09, 0.005, { album: 'xanadu' }, slvTilt);
-// A second sleeve rests on the floor beside the cabinet, leaning against the wall.
-const littleSleeve = new THREE.Group(); littleSleeve.position.set(RX - 0.04, 0.002, -0.72); littleSleeve.rotation.y = -Math.PI / 2; scene.add(littleSleeve);
+// The second sleeve stands on the cabinet beside Xanadu, against the same wall.
+// Its separate hit target stays clear of Xanadu's and is reachable from the room.
+const littleSleeve = new THREE.Group(); littleSleeve.position.set(SLEEVE.x - 0.02, CAB.top, -1.20); littleSleeve.rotation.y = -Math.PI / 2; scene.add(littleSleeve);
 const littleTilt = new THREE.Group(); littleTilt.rotation.x = -0.16; littleSleeve.add(littleTilt);
 const littleTexture = new THREE.TextureLoader().load('assets/img/little_room_for_you.jpg'); littleTexture.encoding = THREE.sRGBEncoding; littleTexture.anisotropy = 4;
 const littleFront = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22), new THREE.MeshPhongMaterial({ map: littleTexture, shininess: 30 })); littleFront.position.set(0, 0.11, 0.002); littleTilt.add(littleFront);
