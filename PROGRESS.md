@@ -144,3 +144,18 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
   tick) and flashes >> INSERT ACCESS CARD << on the CRT; red/green LED on a brass plate right of the pull. Shutting works.
 - tools/test_phone.py; test_drawers.py now puts the card in at boot.
 - [ ] NOT tried in a headset yet
+
+## Silver boombox + Roomba cassette + three new wall posters (Nov 17)
+- js/tape.js replaces the plain grey boombox on the cartridge shelf (room.js lines removed): brushed-silver body with
+  rounded ends, chrome speaker rings / handle / antenna / trim, fake-room cube map for the metal look, deck with a hinged
+  smoked-glass door, PLAY / PAUSE / EJECT keys, VU meter, tuner, EAGLE badge, power LED. Static parts merged per material.
+- Cassette 'The Roomba Ran Away' (assets/audio/the_roomba_ran_away.mp3, 2:49, 128 kbps, already in the repo) stands
+  left of the boombox. Screen: click cassette, click boombox. VR: grip near/pointing (or trigger-hold), let go at the
+  boombox / pointing at it, or push it into the deck. Clicking the cassette in the deck takes it out. Spatial (panner at
+  the boombox). Starting it quiets TV episode, record, poster video, origin frame, voice note, phone, letter, Roomba song;
+  any of those starting pauses it. Ends -> stops and rewinds. Not remembered between visits.
+- js/wallposters.js: three photos from Unity's Drive folder 'New assets for the 80s room' on the wall by the door
+  (z = RZ), x -0.52..2.38, y ~1.3..1.95: Omarchy eagle nest (0.70 m), the three of us (1.00 m), Unity & Miles dancing
+  (0.70 m); aspect from the image, JPEG q82 (1280/1600 px wide).
+- Checked headless: insert / play / pause / eject / reinsert / take out / VR grip + push-in / pointing release / keys by
+  trigger / end-of-tape rewind / quieting both ways; posters render unmirrored, no overlaps. Not tried in a headset yet.

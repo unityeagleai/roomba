@@ -382,10 +382,7 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
   const vt = tex(vl), vm = phong({ color: 0x141418, shininess: 30 });
   for (let i = 0; i < 6; i++) { const g = new THREE.Group(); g.position.set(x0 + 0.1 + i * 0.045 + (i > 3 ? 0.12 : 0), 0.85 + 0.1, cz + 0.02 - (i === 5 ? 0.004 : 0)); g.rotation.z = i === 5 ? 0.35 : 0; scene.add(g); blk(0.035, 0.19, 0.2, vm, 0, 0, 0, g); const lb = new THREE.Mesh(new THREE.PlaneGeometry(0.026, 0.15), phong({ map: vt })); lb.position.set(0, 0, 0.101); g.add(lb); }
   for (let i = 0; i < 4; i++) blk(0.19, 0.035, 0.2, i % 2 ? vm : phong({ color: 0x2a2a6a, shininess: 30 }), x0 + 0.2 + (i % 2) * 0.012, 0.45 + 0.02 + i * 0.036, cz + 0.02);
-  // a boombox on the top, a cassette leaning on it
-  blk(0.4, 0.2, 0.12, phong({ color: 0x2a2a30, shininess: 40 }), cx, 1.7, cz + 0.02);
-  for (const s of [-1, 1]) { const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.01, 18), phong({ color: 0x111114 })); sp.rotation.x = Math.PI / 2; sp.position.set(cx + s * 0.12, 1.69, cz + 0.083); scene.add(sp); }
-  blk(0.1, 0.05, 0.01, phong({ color: 0x9a9aa4 }), cx, 1.75, cz + 0.083);
+  // the silver boombox and the Roomba cassette on the top: tape.js
 })();
 
 // ------------------------------------------------------------ rug, the console, Unity's cushion, beanbag, door
