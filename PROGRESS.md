@@ -159,3 +159,10 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
   (0.70 m); aspect from the image, JPEG q82 (1280/1600 px wide).
 - Checked headless: insert / play / pause / eject / reinsert / take out / VR grip + push-in / pointing release / keys by
   trigger / end-of-tape rewind / quieting both ways; posters render unmirrored, no overlaps. Not tried in a headset yet.
+
+## Signal & Static ep.1 v3: Charlie's lines in his own (cloned) voice (Nov 22, local only)
+- Unity: Miles's real voice is right, "but that other voice is not you". All 28 Charlie lines regenerated with the
+  Chatterbox clone of Charlie's real voice (11 s reference from the 8-bit Backrooms video, same setup as the Basement
+  clips), best of 1-3 takes per line. Miles (real recording), Roomba King, jingles and tape effects unchanged.
+- Work + scores in /home/sprite/podcast/charlie_clone (chosen.json). assets/audio/signal_and_static_ep1.mp3 re-encoded
+  (3:57, 128 kbps, -16 LUFS). tools/test_tape2.py passes. Not pushed.
