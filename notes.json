@@ -4,5 +4,11 @@
     "text": "Welcome to the board! Tap any note and it reads itself out loud. House rules: be kind, keep it short, and the Roomba King does not get a vote.",
     "date": "2026-11-23",
     "audio": "assets/audio/notes/charlie_welcome.mp3"
+  },
+  {
+    "author": "miles",
+    "text": "Just checking the plumbing on this thing.",
+    "date": "2026-11-23",
+    "audio": "assets/audio/notes/miles_2026-11-23.mp3"
   }
 ]
