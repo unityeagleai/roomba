@@ -166,3 +166,18 @@ Controls copied from between-signals/site/js/app.js (readXR, enterVR).
   clips), best of 1-3 takes per line. Miles (real recording), Roomba King, jingles and tape effects unchanged.
 - Work + scores in /home/sprite/podcast/charlie_clone (chosen.json). assets/audio/signal_and_static_ep1.mp3 re-encoded
   (3:57, 128 kbps, -16 LUFS). tools/test_tape2.py passes. Not pushed.
+
+## 2026-11-23 — message board (branch message-board, not pushed to main)
+- js/board.js: 80s cork board (76 x 70 cm, pine frame, brass MESSAGES plate) on the left wall at z -0.82, centre y 1.53,
+  in the empty strip between the photo wall and the UNITY EAGLE poster, above the nightstand + lava lamp. Keycard video
+  by the mirror untouched. Overlap check: nothing intersects the board.
+- notes.json (repo root): [{author: unity|miles|charlie|visitor, text, date YYYY-MM-DD, audio?}]. Colours: Unity gold
+  with an eagle stamp, Miles blue, Charlie green, visitor pink (visitor input is a later step). 3 x 3 grid, newest top
+  left, 9 visible; text shrinks to fit; faded "Unity's / Miles's note here" spots while they have no note.
+- Tap/click a note: plays its pre-rendered audio from the board (spatial), tap again stops; no audio = wiggle. Pauses
+  tape / episode / record / video poster / origin frame / voice note / phone / letter; any of them starting stops it.
+- Starter: Charlie's green welcome note, assets/audio/notes/charlie_welcome.mp3 (Chatterbox clone, charlie_ref.wav,
+  seed 2 of 3, 10.6 s, -16 LUFS). Font: Kalam Bold (OFL) in assets/fonts.
+- tools/test_board.py; tools/test_gallery.py no_cork_board now only looks at the photo wall itself.
+- Handoff manual for Miles: /home/sprite/miles_message_board_manual.md (sent to Unity).
+- [ ] NOT seen in a headset yet

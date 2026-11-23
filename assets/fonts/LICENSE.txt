@@ -1,3 +1,4 @@
 Press Start 2P (c) 2012 The Press Start 2P Project Authors (CodeMan38).
 Silkscreen (c) 2001 Jason Kottke, The Silkscreen Project Authors.
-Both fonts are licensed under the SIL Open Font License, Version 1.1: https://openfontlicense.org
+Kalam (c) 2014 Indian Type Foundry (used for the handwriting on the message board notes).
+All three fonts are licensed under the SIL Open Font License, Version 1.1: https://openfontlicense.org

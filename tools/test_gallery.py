@@ -46,7 +46,7 @@ with sync_playwright() as p:
     check('loose_and_tilted', len(set(rots)) >= 8 and all(0.3 <= abs(r) <= 3 for r in rots), rots)
     holds = [h['rot'] for i in g['items'] for h in i['holds']]
     check('taped_only', all(i['hold'].startswith('tape') and i['holds'] for i in g['items']), [(i['id'], i['hold'], len(i['holds'])) for i in g['items']])
-    nb = ev("""(() => { let n = 0; RV.scene.traverse(o => { if (/cork|board/i.test(o.name)) n++; }); return { named: n, board: RV.gallery.board }; })()""")
+    nb = ev("""(() => { let n = 0; RV.gallery.root.traverse(o => { if (/cork|board/i.test(o.name)) n++; });  /* the message board (js/board.js) hangs beside the photo wall, not on it */ return { named: n, board: RV.gallery.board }; })()""")
     check('no_cork_board', nb['named'] == 0 and nb['board'] is None, nb)
     check('taped_flat_on_wallpaper', fr['min'][0] >= -RX - 1e-4 and fr['max'][0] < -RX + 0.012, fr)
     def corners(c):
