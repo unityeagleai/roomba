@@ -258,12 +258,12 @@ const hubTex = panel(64, 64, (x) => { x.clearRect(0, 0, 64, 64); x.fillStyle = '
 const hubM = new THREE.MeshBasicMaterial({ map: hubTex, transparent: true, alphaTest: 0.4 });
 // where they live: a little row on the shelf left of the boombox, like a tape collection, leaning back a little, labels turned
 // towards the room
-const LEAN = -0.15, HOME_YAW = -0.3;
+const LEAN = -0.15, HOME_YAW = -0.3, FLAT_YAW = 0.12;
 const TAPES = [
   { id: 'roomba', name: 'roomba cassette', src: 'assets/audio/the_roomba_ran_away.mp3', homeX: 1.79,
     label: { seed: 5, gradA: ['#ff3d8b', '#ff9a2e'], gradB: ['#3db8ff', '#a95cff'], titleA: 'The Roomba Ran Away', titleB: 'the Roomba ate side B', szA: 40, szB: 34,
       inkA: '#1d1a52', inkB: '#5a1a1a', doodleA: 'king', doodleB: 'bite', footA: 'Charlie & Unity  ·  mixtape #1', footB: 'nothing left here. it was crunchy.' } },
-  { id: 'podcast', name: 'signal and static cassette', src: 'assets/audio/signal_and_static_ep1.mp3', homeX: 1.9,
+  { id: 'podcast', name: 'signal and static cassette', src: 'assets/audio/signal_and_static_ep1.mp3', homeX: 1.915, flat: true,
     label: { seed: 22, gradA: ['#29e0c8', '#7a4dff'], gradB: ['#ffd23d', '#ff5c5c'], titleA: 'Signal & Static ep.1', titleB: 'property of the King', szA: 38, szB: 34,
       inkA: '#2a1048', inkB: '#5a1a1a', doodleA: 'mics', doodleB: 'king', footA: 'Charlie & Miles  ·  birthday podcast  ·  22.11', footB: 'side B is reserved. all hail.' } },
 ];
@@ -274,8 +274,12 @@ for (const T of TAPES) {
   const shell = new THREE.Mesh(new THREE.BoxGeometry(CW, CH, CT), [shellM, shellM, shellM, shellM, labA, labB]); shell.name = 'cassette shell'; T.cs.add(shell);
   T.hubs = [-1, 1].map(s => { const m = new THREE.Mesh(new THREE.CircleGeometry(0.0072, 20), hubM); m.position.set(s * HUB_X, HUB_Y, CT / 2 + 0.0004); T.cs.add(m); return m; });
   T.hit = new THREE.Mesh(new THREE.BoxGeometry(CW + 0.024, CH + 0.024, CT + 0.03), new THREE.MeshBasicMaterial({ visible: false })); T.hit.userData = { kind: 'tape', tape: T }; T.cs.add(T.hit);
+  // Nov 23 (Unity: 'I would like one cassette to lay flat'): a flat tape lies label side up, turned a little, like one
+  // just set down, a bit nearer the front edge; it flies back to that same flat spot after a swap or eject
+  if (T.flat) { T.HOME_P = new V3(T.homeX, BY + CT / 2 + 0.001, BZ + 0.04); T.HOME_Q = new Q().setFromEuler(new THREE.Euler(-Math.PI / 2, FLAT_YAW, 0, 'YXZ')); }
+  else {
   T.HOME_P = new V3(T.homeX, BY + CH / 2 * Math.cos(LEAN) + CT / 2 * Math.sin(-LEAN) + 0.001, BZ + 0.02);
-  T.HOME_Q = new Q().setFromEuler(new THREE.Euler(LEAN, HOME_YAW, 0, 'YXZ'));
+  T.HOME_Q = new Q().setFromEuler(new THREE.Euler(LEAN, HOME_YAW, 0, 'YXZ')); }
   T.cs.position.copy(T.HOME_P); T.cs.quaternion.copy(T.HOME_Q);
   T.pos = 0;                                    // where its tape was when it left the deck
 }
