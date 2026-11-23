@@ -34,9 +34,12 @@ with sync_playwright() as p:
         out[T.id] = { box: [f(B.min), f(B.max)], overlaps: hits, under }; }
       const a = new THREE.Box3().setFromObject(RV.tape.TAPES[0].cs.children[0]), c = new THREE.Box3().setFromObject(RV.tape.TAPES[1].cs.children[0]); out.tapesOverlap = a.intersectsBox(c);
       return out; })()''')
+    # look at the middle of the boombox + cassette row, wherever it stands (moved to the lower board on Nov 23)
+    C = ev('(() => { const b = RV.tape.bb.position, t = RV.tape.TAPES[0].HOME_P; return [(b.x + t.x) / 2, b.y + 0.11, b.z]; })()')
+    FACE = f'__rv.faceAt({C[0]:.3f}, {C[1]:.3f}, {C[2]:.3f})'
     for i, (x, z, tag) in enumerate([(1.6, -0.9, 'close'), (0.35, 1.45, 'from_start'), (2.1, -1.35, 'very_close')]):
-        ev(f'__rv.setPlayer({x}, {z}, 0)'); W(150); ev('__rv.faceAt(2.13, 1.64, -2.0)'); W(500); pg.screenshot(path=f'{OUT}/0{i}_{tag}.png')
-    ev('__rv.setPlayer(2.0, -1.1, 0)'); W(150); ev('__rv.faceAt(2.13, 1.65, -2.0)'); W(400)
+        ev(f'__rv.setPlayer({x}, {z}, 0)'); W(150); ev(FACE); W(500); pg.screenshot(path=f'{OUT}/0{i}_{tag}.png')
+    ev('__rv.setPlayer(2.0, -1.1, 0)'); W(150); ev(FACE); W(400)
     def at(js):
         return ev('(() => { const c = new THREE.Vector3(); (' + js + ').getWorldPosition(c); return __rv.projectPt(c.x, c.y, c.z); })()')
     P_pod = at('RV.tape.TAPES[1].cs'); P_rm = at('RV.tape.TAPES[0].cs')
@@ -48,6 +51,7 @@ with sync_playwright() as p:
     real(2500); res['checks']['podcast_advancing'] = st()
     # the Roomba cassette while the podcast is in the deck
     pg.mouse.click(P_rm['x'], P_rm['y']); real(900); res['checks']['click_roomba_swap'] = dict(st(), podPos=ev('RV.tape.TAPES[1].pos'), podAtHome=ev('RV.tape.TAPES[1].cs.position.distanceTo(RV.tape.TAPES[1].HOME_P) < 0.002'))
+    W(1200); res['checks']['pod_home_after_swap'] = ev('({ d: +RV.tape.TAPES[1].cs.position.distanceTo(RV.tape.TAPES[1].HOME_P).toFixed(4), homing: RV.tape._debug().homing })')
     pg.mouse.click(P_box['x'], P_box['y']); real(3500); res['checks']['roomba_playing'] = dict(st(), src=ev('RV.tape.audio.currentSrc'))
     # eject + play still fine
     ev('RV.tape.press("eject")'); real(600); res['checks']['eject'] = st()
@@ -56,6 +60,7 @@ with sync_playwright() as p:
     r = ev('''(() => { const c = RV.camera.getWorldPosition(new THREE.Vector3()), t = RV.tape.TAPES[1].cs.getWorldPosition(new THREE.Vector3()); const d = t.sub(c).normalize(); const ctl = new THREE.Object3D(); RV.scene.add(ctl); window.__ctl = ctl;
         return { handled: RV.media.selectStart(ctl, c, d) }; })()'''); real(900)
     res['checks']['vr_select_podcast'] = dict(r, **st(), rmAtHome=ev('RV.tape.TAPES[0].cs.position.distanceTo(RV.tape.TAPES[0].HOME_P) < 0.002'))
+    W(1200); res['checks']['rm_home_after_grab'] = ev('({ d: +RV.tape.TAPES[0].cs.position.distanceTo(RV.tape.TAPES[0].HOME_P).toFixed(4), homing: RV.tape._debug().homing })')
     # release at the boombox (ray pointed at it): goes in and resumes where it was
     ev('''(() => { const c = RV.camera.getWorldPosition(new THREE.Vector3()), t = RV.tape.bb.localToWorld(new THREE.Vector3(0.15, 0.09, 0.06)); RV.media.selectEnd(window.__ctl, c, t.sub(c).normalize()); })()'''); W(1500); real(2500)
     res['checks']['vr_release_resume'] = dict(st(), src=ev('RV.tape.audio.currentSrc'))

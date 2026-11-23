@@ -377,12 +377,13 @@ poster('poster_liminal.png', 0.6, 0.48, [RX - 0.005, 1.55, -0.2], -Math.PI / 2, 
   for (const yy of [0.04, 0.42, 0.82, 1.2]) blk(w - 0.06, 0.025, d, M.wood, cx, yy, cz);
   blk(w - 0.06, 0.3, 0.012, M.woodDark, cx, 0.22, z1 - 0.006);
   box(x0, x1, z0, z1, 'both', 'shelf');
-  // VHS tapes (the season cartridges moved to the shelf next to the bed)
+  // VHS tapes, standing on top of the shelf (Nov 23: moved up from the board at 0.82 so the boombox and its cassettes sit
+  // at grabbing height there; the season cartridges live on the shelf next to the bed)
   const vl = canvas(64, 128), vx = vl.getContext('2d'); vx.fillStyle = '#f0e8d0'; vx.fillRect(0, 0, 64, 128); vx.fillStyle = '#100820'; for (let k = 0; k < 5; k++) vx.fillRect(10, 14 + k * 22, 30 + (k * 17) % 16, 5); weather(vl, 5, { mottle: 0.2 });
   const vt = tex(vl), vm = phong({ color: 0x141418, shininess: 30 });
-  for (let i = 0; i < 6; i++) { const g = new THREE.Group(); g.position.set(x0 + 0.1 + i * 0.045 + (i > 3 ? 0.12 : 0), 0.85 + 0.1, cz + 0.02 - (i === 5 ? 0.004 : 0)); g.rotation.z = i === 5 ? 0.35 : 0; scene.add(g); blk(0.035, 0.19, 0.2, vm, 0, 0, 0, g); const lb = new THREE.Mesh(new THREE.PlaneGeometry(0.026, 0.15), phong({ map: vt })); lb.position.set(0, 0, 0.101); g.add(lb); }
+  for (let i = 0; i < 6; i++) { const g = new THREE.Group(); g.name = 'vhs tape'; g.rotation.z = i === 5 ? 0.35 : 0; g.position.set(x0 + 0.1 + i * 0.045 + (i > 3 ? 0.12 : 0), 1.6 + 0.0175 * Math.sin(Math.abs(g.rotation.z)) + 0.095 * Math.cos(g.rotation.z) + 0.0005, cz + 0.02 - (i === 5 ? 0.004 : 0)); scene.add(g); blk(0.035, 0.19, 0.2, vm, 0, 0, 0, g); const lb = new THREE.Mesh(new THREE.PlaneGeometry(0.026, 0.15), phong({ map: vt })); lb.position.set(0, 0, 0.101); g.add(lb); }
   for (let i = 0; i < 4; i++) blk(0.19, 0.035, 0.2, i % 2 ? vm : phong({ color: 0x2a2a6a, shininess: 30 }), x0 + 0.2 + (i % 2) * 0.012, 0.45 + 0.02 + i * 0.036, cz + 0.02);
-  // the silver boombox and the Roomba cassette on the top: tape.js
+  // the silver boombox and its cassettes on the board at 0.82 (where the VHS tapes used to stand): tape.js
 })();
 
 // ------------------------------------------------------------ rug, the console, Unity's cushion, beanbag, door

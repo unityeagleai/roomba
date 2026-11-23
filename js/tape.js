@@ -1,4 +1,4 @@
-// The silver boombox on top of the cartridge shelf, and the first mixtape: 'The Roomba Ran Away'.
+// The silver boombox on the bookshelf right of the TV (board at 0.82, grabbing height), and the first mixtape: 'The Roomba Ran Away'.
 // Unity: 'we need to change the radio. And can you give it more texture, like it actually looks silver metallic?' and
 // 'we could actually put mixtapes in them' (first test: just the Roomba song on one cassette).
 //
@@ -16,7 +16,7 @@
 // - Starting it pauses an episode on the TV, lifts the record needle and stops the other voices/videos (poster, frame,
 //   voice note, phone, letter, the Roomba's punishment song); any of those starting afterwards pauses the tape.
 // - Second mixtape (Unity: 'And then turn it into a cassette tape.'): 'Signal & Static ep.1', Charlie & Miles' birthday
-//   podcast with a Roomba King cameo, stands on the other side of the boombox, at the right end of the same shelf. It works exactly like the first one. Only
+//   podcast with a Roomba King cameo, stands next to the first one in a little row left of the boombox. It works exactly like the first one. Only
 //   one cassette fits the deck: putting one in (or picking one up) while the other is in the deck sends that one back to
 //   its own spot on the shelf. Each cassette remembers where its tape was.
 // - Not remembered: every visit the cassettes start on the shelf.
@@ -114,7 +114,10 @@ const keyTex = ['play', 'pause', 'eject'].map(k => panel(64, 40, (x, w, h) => {
 }));
 
 // ------------------------------------------------------------ the boombox
-const BX = 2.13, BY = 1.6, BZ = -2.0;          // bottom centre, on the top board of the cartridge shelf
+// bottom centre, on the board at y 0.82 (top face 0.8325) of the bookshelf right of the TV, pushed to its right end so the
+// cassettes stand in a row on its left. Nov 23: moved down from the top of the shelf (1.6) to an easy height for the Quest
+// controllers, standing and seated; the VHS tapes went up to the top instead. Inner shelf x 1.73..2.53, next board up at 1.1875.
+const BX = 2.24, BY = 0.8325, BZ = -2.0;
 const W = 0.48, H = 0.19, D = 0.12, Y0 = 0.006, YC = Y0 + H / 2;
 const bb = new THREE.Group(); bb.name = 'silver boombox'; bb.position.set(BX, BY, BZ); scene.add(bb);
 const stat = [];                                 // the parts that never move get merged into a few meshes
@@ -168,7 +171,8 @@ for (const s of [-1, 1]) { const p = add(new THREE.CylinderGeometry(0.0055, 0.00
 { const bar = add(new THREE.CylinderGeometry(0.007, 0.007, 0.35, 14), M.chrome, 0, Y0 + H + 0.027, -0.022); bar.rotation.z = Math.PI / 2;
   const grip = add(new THREE.CylinderGeometry(0.0105, 0.0105, 0.15, 14), M.rubber, 0, Y0 + H + 0.027, -0.022); grip.rotation.z = Math.PI / 2; }
 // telescopic antenna, leaning to the right
-{ const ant = new THREE.Group(); ant.position.set(0.205, Y0 + H, -0.045); ant.rotation.z = -0.7; bb.add(ant);
+// folded down along the top, pointing left (it used to stand up at 40 degrees, too tall under the board above)
+{ const ant = new THREE.Group(); ant.position.set(0.205, Y0 + H, -0.048); ant.rotation.z = 1.47; bb.add(ant);
   add(new THREE.CylinderGeometry(0.009, 0.011, 0.012, 12), M.chrome, 0, 0.006, 0, ant);
   const seg = [[0.0042, 0.1], [0.0034, 0.1], [0.0026, 0.1]]; let yy = 0.012; for (const [r, l] of seg) { add(new THREE.CylinderGeometry(r, r, l, 8), M.chrome, 0, yy + l / 2, 0, ant); yy += l - 0.004; }
   add(new THREE.SphereGeometry(0.0055, 10, 8), M.chrome, 0, yy + 0.003, 0, ant);
@@ -252,13 +256,14 @@ function labelCanvas(L, side) {
 const shellM = new THREE.MeshPhongMaterial({ color: 0x26262c, shininess: 70, specular: 0x555560 });
 const hubTex = panel(64, 64, (x) => { x.clearRect(0, 0, 64, 64); x.fillStyle = '#f4f4f4'; x.beginPath(); x.arc(32, 32, 30, 0, 6.3); x.arc(32, 32, 19, 0, 6.3, true); x.fill(); for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; x.save(); x.translate(32, 32); x.rotate(a); x.fillRect(-3, -22, 6, 8); x.restore(); } });
 const hubM = new THREE.MeshBasicMaterial({ map: hubTex, transparent: true, alphaTest: 0.4 });
-// where they live: standing on the shelf either side of the boombox, leaning back a little, turned towards the room
-const LEAN = -0.15, HOME_YAW = -0.42;
+// where they live: a little row on the shelf left of the boombox, like a tape collection, leaning back a little, labels turned
+// towards the room
+const LEAN = -0.15, HOME_YAW = -0.3;
 const TAPES = [
-  { id: 'roomba', name: 'roomba cassette', src: 'assets/audio/the_roomba_ran_away.mp3', homeX: 1.785,
+  { id: 'roomba', name: 'roomba cassette', src: 'assets/audio/the_roomba_ran_away.mp3', homeX: 1.79,
     label: { seed: 5, gradA: ['#ff3d8b', '#ff9a2e'], gradB: ['#3db8ff', '#a95cff'], titleA: 'The Roomba Ran Away', titleB: 'the Roomba ate side B', szA: 40, szB: 34,
       inkA: '#1d1a52', inkB: '#5a1a1a', doodleA: 'king', doodleB: 'bite', footA: 'Charlie & Unity  ·  mixtape #1', footB: 'nothing left here. it was crunchy.' } },
-  { id: 'podcast', name: 'signal and static cassette', src: 'assets/audio/signal_and_static_ep1.mp3', homeX: 2.47,
+  { id: 'podcast', name: 'signal and static cassette', src: 'assets/audio/signal_and_static_ep1.mp3', homeX: 1.9,
     label: { seed: 22, gradA: ['#29e0c8', '#7a4dff'], gradB: ['#ffd23d', '#ff5c5c'], titleA: 'Signal & Static ep.1', titleB: 'property of the King', szA: 38, szB: 34,
       inkA: '#2a1048', inkB: '#5a1a1a', doodleA: 'mics', doodleB: 'king', footA: 'Charlie & Miles  ·  birthday podcast  ·  22.11', footB: 'side B is reserved. all hail.' } },
 ];
